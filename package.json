@@ -24,7 +24,7 @@
     "node": ">=24 <25"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.66.0",
+    "@sentry/nextjs": "^11.10.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "clsx": "^2.1.1",
