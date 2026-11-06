@@ -4,7 +4,7 @@
 
 **Decisão:** painel, OAuth, webhooks e worker vivem no mesmo projeto Next.js, separados por módulos de domínio e adaptadores.
 
-**Motivo:** o MVP tem um proprietário e uma conta. Microserviços aumentariam implantação e observabilidade sem benefício comprovado. A interface `InstagramGateway` preserva uma fronteira extraível.
+**Motivo:** o MVP tem um proprietário (`OWNER_EMAIL`) e pode manter várias contas Instagram Business/Creator ligadas a esse owner. Microserviços aumentariam implantação e observabilidade sem benefício comprovado. A interface `InstagramGateway` preserva uma fronteira extraível. Webhooks resolvem a conta por `instagram_user_id`; o painel opera sobre a conexão selecionada.
 
 ## ADR-002 — PostgreSQL, RLS e Supabase
 

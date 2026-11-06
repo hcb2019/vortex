@@ -3,13 +3,14 @@ import { decryptSecret } from "@/server/crypto";
 import { isDemoMode } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { instagramGateway } from "@/server/instagram";
+import { findOwnedInstagramConnection } from "@/server/instagram/owned-connection";
 
-export async function syncAudienceData(ownerId: string) {
+export async function syncAudienceData(ownerId: string, connectionId?: string | null) {
   if (isDemoMode) return { commentsImported: 184, reelsSynced: 3 };
   const supabase = createSupabaseAdminClient();
-  const { data: connection } = await supabase.from("instagram_connections").select("*").eq("owner_id", ownerId).single();
+  const connection = await findOwnedInstagramConnection(ownerId, connectionId);
   if (!connection || connection.status !== "connected") throw new Error("Conexão do Instagram indisponível.");
-  const { data: mediaRows } = await supabase.from("instagram_media").select("*").eq("owner_id", ownerId).order("published_at", { ascending: false }).limit(20);
+  const { data: mediaRows } = await supabase.from("instagram_media").select("*").eq("connection_id", connection.id).order("published_at", { ascending: false }).limit(20);
   const media = mediaRows ?? [];
   const accessToken = decryptSecret({ ciphertext: connection.token_ciphertext, iv: connection.token_iv, tag: connection.token_tag });
   const gateway = instagramGateway();
@@ -43,12 +44,11 @@ export async function syncAudienceData(ownerId: string) {
 export async function syncConnectedAudienceAccounts() {
   if (isDemoMode) return { accountsSynced: 0, accountsFailed: 0 };
   const supabase = createSupabaseAdminClient();
-  const { data: connections } = await supabase.from("instagram_connections").select("owner_id").eq("status", "connected");
-  const ownerIds = [...new Set((connections ?? []).map(({ owner_id }) => owner_id))];
+  const { data: connections } = await supabase.from("instagram_connections").select("id,owner_id").eq("status", "connected");
   let accountsSynced = 0;
   let accountsFailed = 0;
-  for (const ownerId of ownerIds) {
-    try { await syncAudienceData(ownerId); accountsSynced += 1; }
+  for (const connection of connections ?? []) {
+    try { await syncAudienceData(connection.owner_id, connection.id); accountsSynced += 1; }
     catch { accountsFailed += 1; }
   }
   return { accountsSynced, accountsFailed };

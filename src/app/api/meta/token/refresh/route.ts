@@ -1,6 +1,6 @@
 import { getOwner } from "@/lib/auth";
 import { env, isDemoMode } from "@/lib/env";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { findOwnedInstagramConnection, readRequestedConnectionId } from "@/server/instagram/owned-connection";
 import { renewInstagramConnectionToken } from "@/server/instagram/token-lifecycle";
 
 function settingsRedirect(result: "success" | "error") {
@@ -16,13 +16,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid origin" }, { status: 403 });
   }
   if (isDemoMode) return settingsRedirect("success");
-
-  const supabase = createSupabaseAdminClient();
-  const { data: connection } = await supabase
-    .from("instagram_connections")
-    .select("id,token_ciphertext,token_iv,token_tag,token_expires_at,status")
-    .eq("owner_id", owner.id)
-    .maybeSingle();
+  const connectionId = await readRequestedConnectionId(request);
+  const connection = await findOwnedInstagramConnection(owner.id, connectionId);
   if (!connection) return settingsRedirect("error");
   try {
     await renewInstagramConnectionToken(connection, { force: true });

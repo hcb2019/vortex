@@ -14,6 +14,7 @@ import {
 import { normalizeKeyword, readConversationFlow } from "@/lib/domain";
 import { decryptSecret } from "@/server/crypto";
 import { instagramGateway } from "@/server/instagram";
+import { findOwnedInstagramConnection } from "@/server/instagram/owned-connection";
 import { MetaApiError } from "@/server/instagram/meta-gateway";
 
 const VIDEO_SIGNED_URL_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -60,6 +61,7 @@ export interface CreatePipelinePostOptions {
   videoFile?: File;
   videoUrl?: string;
   publishImmediately?: boolean;
+  connectionId?: string | null;
 }
 
 export class PipelineError extends Error {
@@ -123,15 +125,8 @@ async function uploadVideoForMeta(ownerId: string, postId: string, file: File) {
 }
 
 async function getConnectedInstagramAccount(ownerId: string, connectionId: string | null) {
-  const supabase = createSupabaseAdminClient();
-  let query = supabase
-    .from("instagram_connections")
-    .select("*")
-    .eq("owner_id", ownerId)
-    .eq("status", "connected");
-  if (connectionId) query = query.eq("id", connectionId);
-  const { data } = await query.limit(1).maybeSingle();
-  if (!data) throw new PipelineError("Reconecte o Instagram antes de publicar.", "CONNECTION_UNAVAILABLE", 409);
+  const data = await findOwnedInstagramConnection(ownerId, connectionId);
+  if (!data || data.status !== "connected") throw new PipelineError("Reconecte o Instagram antes de publicar.", "CONNECTION_UNAVAILABLE", 409);
   return data as InstagramConnectionRow;
 }
 
@@ -263,7 +258,7 @@ async function publishPostThroughMeta(post: PipelinePostRow, connection: Instagr
   return null;
 }
 
-export async function createPipelinePost({ ownerId, input, videoFile, videoUrl, publishImmediately = true }: CreatePipelinePostOptions) {
+export async function createPipelinePost({ ownerId, input, videoFile, videoUrl, publishImmediately = true, connectionId = null }: CreatePipelinePostOptions) {
   if (!videoFile && !videoUrl) throw new PipelineError("Envie um vídeo ou informe uma URL HTTPS do vídeo.", "VIDEO_REQUIRED", 422);
   if (videoUrl) {
     try {
@@ -275,7 +270,7 @@ export async function createPipelinePost({ ownerId, input, videoFile, videoUrl, 
   const supabase = createSupabaseAdminClient();
   const id = crypto.randomUUID();
   const scheduledForFuture = isScheduledForFuture(input.scheduledAt);
-  const connection = await getConnectedInstagramAccount(ownerId, null);
+  const connection = await getConnectedInstagramAccount(ownerId, connectionId);
   const { error } = await supabase.from("content_pipeline_posts").insert({
     id,
     owner_id: ownerId,

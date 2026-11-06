@@ -112,7 +112,7 @@ export async function retryPrivateReply(ownerId: string, runId: string) {
   const supabase = createSupabaseAdminClient();
   const { data: run } = await supabase
     .from("automation_runs")
-    .select("*")
+    .select("*, automations!inner(connection_id)")
     .eq("id", runId)
     .eq("owner_id", ownerId)
     .maybeSingle();
@@ -122,9 +122,11 @@ export async function retryPrivateReply(ownerId: string, runId: string) {
     throw new Error("A janela de sete dias da Meta terminou.");
   }
 
+  const connectionId = (run.automations as { connection_id?: string } | null)?.connection_id;
   const { data: connection } = await supabase
     .from("instagram_connections")
     .select("*")
+    .eq("id", connectionId)
     .eq("owner_id", ownerId)
     .eq("status", "connected")
     .maybeSingle();
@@ -642,7 +644,7 @@ export async function recoverPendingFollowerMessages(limit = 10) {
   const oldestAllowed = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: pendingRuns, error } = await supabase
     .from("automation_runs")
-    .select("id,owner_id,dm_recipient_id,created_at")
+    .select("id,owner_id,dm_recipient_id,created_at,automations!inner(connection_id)")
     .eq("require_follow_snapshot", true)
     .in("follow_status", ["awaiting_reply", "not_following"])
     .not("dm_recipient_id", "is", null)
@@ -656,14 +658,15 @@ export async function recoverPendingFollowerMessages(limit = 10) {
   const checkedRecipients = new Set<string>();
   for (const run of pendingRuns ?? []) {
     const recipientId = run.dm_recipient_id as string;
-    const lookupKey = `${run.owner_id}:${recipientId}`;
+    const connectionId = (run.automations as { connection_id?: string } | null)?.connection_id;
+    const lookupKey = `${connectionId ?? run.owner_id}:${recipientId}`;
     if (checkedRecipients.has(lookupKey)) continue;
     checkedRecipients.add(lookupKey);
 
     const { data: connection } = await supabase
       .from("instagram_connections")
       .select("*")
-      .eq("owner_id", run.owner_id)
+      .eq("id", connectionId)
       .eq("status", "connected")
       .maybeSingle();
     if (!connection) continue;

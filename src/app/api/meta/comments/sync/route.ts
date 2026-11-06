@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { syncRecentAutomationComments } from "@/server/automation-comment-sync";
 import { MetaApiError } from "@/server/instagram/meta-gateway";
+import { findOwnedInstagramConnection, readRequestedConnectionId } from "@/server/instagram/owned-connection";
 
 function settingsRedirect(result: "success" | "error", counts?: { found: number; queued: number; processed: number }) {
   const url = new URL("/settings", env.APP_ORIGIN);
@@ -21,13 +22,17 @@ export async function POST(request: Request) {
   if (request.headers.get("origin") !== env.APP_ORIGIN) {
     return Response.json({ error: "Invalid origin" }, { status: 403 });
   }
+  const connectionId = await readRequestedConnectionId(request);
+  const connection = await findOwnedInstagramConnection(owner.id, connectionId);
 
   try {
-    const result = await syncRecentAutomationComments(owner.id);
-    await createSupabaseAdminClient()
-      .from("instagram_connections")
-      .update({ last_error: null })
-      .eq("owner_id", owner.id);
+    const result = await syncRecentAutomationComments(owner.id, connection?.id);
+    if (connection) {
+      await createSupabaseAdminClient()
+        .from("instagram_connections")
+        .update({ last_error: null })
+        .eq("id", connection.id);
+    }
     return settingsRedirect("success", result);
   } catch (error) {
     const diagnostic = error instanceof MetaApiError
@@ -40,10 +45,12 @@ export async function POST(request: Request) {
       metaCode: error instanceof MetaApiError ? error.code ?? null : null,
       httpStatus: error instanceof MetaApiError ? error.status : null,
     });
-    await createSupabaseAdminClient()
-      .from("instagram_connections")
-      .update({ last_error: diagnostic.slice(0, 400) })
-      .eq("owner_id", owner.id);
+    if (connection) {
+      await createSupabaseAdminClient()
+        .from("instagram_connections")
+        .update({ last_error: diagnostic.slice(0, 400) })
+        .eq("id", connection.id);
+    }
     return settingsRedirect("error");
   }
 }

@@ -9,6 +9,7 @@ import { requireOwner } from "@/lib/auth";
 import { isDemoMode } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { processAudienceQueueBatch, queueAudienceAnalysis } from "@/server/audience/jobs";
+import { getConnection } from "@/server/data";
 import { demoStore, saveDemoAutomation } from "@/server/demo-store";
 
 export async function requestAudienceAnalysis(formData: FormData) {
@@ -25,7 +26,8 @@ export async function requestAudienceAnalysis(formData: FormData) {
     revalidatePath("/radar");
     redirect(`/radar?period=${period.data}&analysis=ready${mediaId ? `&media=${mediaId}` : ""}`);
   }
-  const result = await queueAudienceAnalysis(owner.id, period.data, mediaId);
+  const connection = await getConnection();
+  const result = await queueAudienceAnalysis(owner.id, period.data, mediaId, connection?.id);
   if (result.outcome === "queued") after(() => processAudienceQueueBatch(1));
   revalidatePath("/radar");
   redirect(`/radar?period=${period.data}&analysis=${result.outcome}${mediaId ? `&media=${mediaId}` : ""}`);
@@ -87,7 +89,7 @@ export async function createAutomationFromInsight(formData: FormData) {
   if (!insight || !parsedSuggestion.success) return;
   const suggestion = parsedSuggestion.data;
   const mediaId = (insight.media_ids as string[] | null)?.[0] ?? null;
-  const { data: connection } = await supabase.from("instagram_connections").select("id").eq("owner_id", owner.id).single();
+  const connection = await getConnection();
   if (!connection) return;
   const keywordNormalized = normalizeKeyword(suggestion.keyword);
   let existingQuery = supabase.from("automations").select("id").eq("connection_id", connection.id).eq("keyword_normalized", keywordNormalized).is("deleted_at", null);

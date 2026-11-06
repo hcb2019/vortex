@@ -7,7 +7,7 @@ import { getAudienceRadarData } from "@/server/audience/data";
 import { getCreatorProfile } from "@/server/content-studio/data";
 import { ContentStudioProvider } from "@/server/content-studio/provider";
 import { demoStore } from "@/server/demo-store";
-import { listMedia } from "@/server/data";
+import { getConnection, listMedia } from "@/server/data";
 import type { InstagramMedia } from "@/types/domain";
 
 async function listOwnReelsWithInsights(): Promise<{ connected: boolean; media: InstagramMedia[] }> {
@@ -30,8 +30,8 @@ async function listOwnReelsWithInsights(): Promise<{ connected: boolean; media: 
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: connection } = await supabase.from("instagram_connections").select("id,status").eq("owner_id", owner.id).maybeSingle();
-  const media = await listMedia();
+  const connection = await getConnection();
+  const media = await listMedia(connection?.id);
   if (!connection || connection.status === "disconnected") return { connected: false, media };
 
   const { data: snapshots } = await supabase

@@ -25,7 +25,7 @@ function shouldAutoSyncMedia(lastMediaSyncAt: string | null | undefined) {
   return Date.now() - new Date(lastMediaSyncAt).getTime() >= AUTO_SYNC_STALE_MS;
 }
 
-export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReels = true }: { automation?: Automation; media: InstagramMedia[]; lastMediaSyncAt?: string | null; canSyncReels?: boolean }) {
+export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReels = true, connectionId }: { automation?: Automation; media: InstagramMedia[]; lastMediaSyncAt?: string | null; canSyncReels?: boolean; connectionId?: string }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<AutomationActionState, FormData>(saveAutomation, {});
   const [suggestionPending, startSuggestionTransition] = useTransition();
@@ -84,7 +84,9 @@ export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReel
     setSyncError("");
     if (source === "manual") setSyncMessage("");
     try {
-      const response = await fetch("/api/meta/media/sync", { method: "POST", headers: { Accept: "application/json" } });
+      const body = new FormData();
+      if (connectionId) body.set("connectionId", connectionId);
+      const response = await fetch("/api/meta/media/sync", { method: "POST", headers: { Accept: "application/json" }, body });
       const result = await response.json() as { synced?: number; skipped?: boolean; message?: string; error?: string };
       if (!response.ok) throw new Error(result.error || "Não foi possível atualizar os Reels.");
       setSyncMessage(result.message ?? (result.skipped ? "Os Reels já estavam atualizados." : "Reels atualizados."));

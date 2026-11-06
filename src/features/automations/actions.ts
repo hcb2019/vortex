@@ -8,6 +8,7 @@ import { isDemoMode } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { saveDemoAutomation, demoStore } from "@/server/demo-store";
 import { generateAutomationMessageSuggestions } from "@/server/automation-suggestions";
+import { getConnection } from "@/server/data";
 import type { AutomationMessageSuggestion } from "@/lib/automation-suggestions";
 
 export interface AutomationActionState {
@@ -93,12 +94,15 @@ export async function saveAutomation(_state: AutomationActionState, formData: Fo
   }
 
   const supabase = await createSupabaseServerClient();
-  const connectionResult = await supabase.from("instagram_connections").select("id,status").eq("owner_id", owner.id).maybeSingle();
-  if (!connectionResult.data) return { error: "Conecte uma conta do Instagram antes de salvar." };
-  if (input.intent === "active" && connectionResult.data.status !== "connected") return { error: "A conexão precisa estar ativa para publicar a automação." };
+  const connection = await getConnection();
+  if (!connection) return { error: "Conecte uma conta do Instagram antes de salvar." };
+  if (input.intent === "active" && connection.status !== "connected") return { error: "A conexão precisa estar ativa para publicar a automação." };
+  const { data: mediaRow } = await supabase.from("instagram_media").select("id").eq("id", input.mediaId).eq("connection_id", connection.id).maybeSingle();
+  if (input.mediaId && !mediaRow) return { error: "Este Reel não pertence à conta selecionada." };
   const { data: existingAutomations } = await supabase
     .from("automations")
     .select("id,keyword,keyword_variants")
+    .eq("connection_id", connection.id)
     .eq("media_id", input.mediaId)
     .is("deleted_at", null);
   const duplicate = (existingAutomations ?? []).some((item) =>
@@ -117,7 +121,7 @@ export async function saveAutomation(_state: AutomationActionState, formData: Fo
 
   const payload = {
     owner_id: owner.id,
-    connection_id: connectionResult.data.id,
+    connection_id: connection.id,
     media_id: input.mediaId || null,
     name: input.name,
     keyword: input.keyword,

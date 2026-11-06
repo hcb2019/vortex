@@ -151,7 +151,7 @@ export default async function ConnectionGuidePage() {
         <div className={connection ? "setup-status connected" : "setup-status"}>{connection ? <CheckCircle2 size={20} /> : <AtSign size={20} />}</div>
         <span>Estado da sua instalação</span>
         <strong>{connection ? `@${connection.username}` : "Instagram ainda não conectado"}</strong>
-        <p>{isDemoMode ? "O painel está em modo demonstração." : connection ? "A conta já autorizou o Vortex." : "Complete as oito etapas abaixo."}</p>
+        <p>{isDemoMode ? "O painel está em modo demonstração." : connection ? "A conta já autorizou o Vortex. Em Integração você pode conectar outra sem substituir esta." : "Complete as oito etapas abaixo."}</p>
       </aside>
     </header>
 
@@ -285,6 +285,7 @@ export default async function ConnectionGuidePage() {
         <TaskList>
           <li>Clique em <strong>Conectar Instagram</strong> e autorize as permissões solicitadas.</li>
           <li>Ao voltar, confirme que o painel mostra a conta conectada e os Reels sincronizados.</li>
+          <li>Para um segundo perfil Business ou Creator, abra Integração e use <strong>Conectar outra conta</strong>. Reautorizar um @handle não apaga o outro.</li>
           <li>Crie uma automação com uma palavra fácil de testar, por exemplo <strong>GUIA2026</strong>.</li>
           <li>Com uma segunda conta, comente exatamente essa palavra em um Reel.</li>
           <li>Confira a resposta pública, a solicitação no Direct e o registro no Histórico.</li>

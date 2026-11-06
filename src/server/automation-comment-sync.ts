@@ -4,23 +4,23 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/server/crypto";
 import { ingestEvents, processQueueBatch } from "@/server/jobs";
 import { instagramGateway } from "@/server/instagram";
+import { findOwnedInstagramConnection } from "@/server/instagram/owned-connection";
 
-export async function syncRecentAutomationComments(ownerId: string) {
+export async function syncRecentAutomationComments(ownerId: string, connectionId?: string | null) {
   if (isDemoMode) return { found: 1, queued: 1, processed: 1 };
 
-  const supabase = createSupabaseAdminClient();
-  const [{ data: connection }, { data: automations }] = await Promise.all([
-    supabase.from("instagram_connections").select("*").eq("owner_id", ownerId).single(),
-    supabase
-      .from("automations")
-      .select("media_id")
-      .eq("owner_id", ownerId)
-      .eq("status", "active")
-      .is("deleted_at", null),
-  ]);
+  const connection = await findOwnedInstagramConnection(ownerId, connectionId);
   if (!connection || connection.status !== "connected") {
     throw new Error("Conexão do Instagram indisponível.");
   }
+  const supabase = createSupabaseAdminClient();
+  const { data: automations } = await supabase
+    .from("automations")
+    .select("media_id")
+    .eq("owner_id", ownerId)
+    .eq("connection_id", connection.id)
+    .eq("status", "active")
+    .is("deleted_at", null);
 
   const mediaIds = [...new Set((automations ?? []).flatMap(({ media_id }) => media_id ? [media_id] : []))];
   if (!mediaIds.length) return { found: 0, queued: 0, processed: 0 };
@@ -28,7 +28,7 @@ export async function syncRecentAutomationComments(ownerId: string) {
   const { data: mediaRows } = await supabase
     .from("instagram_media")
     .select("external_id")
-    .eq("owner_id", ownerId)
+    .eq("connection_id", connection.id)
     .in("id", mediaIds);
   const accessToken = decryptSecret({
     ciphertext: connection.token_ciphertext,

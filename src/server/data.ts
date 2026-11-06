@@ -1,9 +1,29 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/env";
+import {
+  SELECTED_CONNECTION_COOKIE,
+  isConnectionId,
+  resolveSelectedConnectionId,
+} from "@/lib/instagram-accounts";
 import { demoStore } from "@/server/demo-store";
 import { readConversationFlow } from "@/lib/domain";
 import type { Automation, AutomationRun, DashboardMetrics, InstagramConnection, InstagramMedia } from "@/types/domain";
+
+function mapConnection(row: Record<string, unknown>): InstagramConnection {
+  return {
+    id: String(row.id),
+    ownerId: String(row.owner_id),
+    instagramUserId: String(row.instagram_user_id),
+    username: String(row.username),
+    status: row.status as InstagramConnection["status"],
+    tokenExpiresAt: row.token_expires_at ? String(row.token_expires_at) : null,
+    tokenRefreshedAt: row.token_refreshed_at ? String(row.token_refreshed_at) : null,
+    lastSyncAt: row.last_sync_at ? String(row.last_sync_at) : null,
+    lastError: row.last_error ? String(row.last_error) : null,
+  };
+}
 
 function mapAutomation(row: Record<string, unknown>): Automation {
   return {
@@ -29,29 +49,75 @@ function mapAutomation(row: Record<string, unknown>): Automation {
   };
 }
 
-export async function getConnection(): Promise<InstagramConnection | null> {
-  if (isDemoMode) return demoStore().connection;
-  const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("instagram_connections").select("*").maybeSingle();
-  if (!data) return null;
+function mapMedia(row: Record<string, unknown>): InstagramMedia {
   return {
-    id: data.id, ownerId: data.owner_id, instagramUserId: data.instagram_user_id, username: data.username,
-    status: data.status, tokenExpiresAt: data.token_expires_at, tokenRefreshedAt: data.token_refreshed_at,
-    lastSyncAt: data.last_sync_at, lastError: data.last_error,
-  } as InstagramConnection;
+    id: String(row.id),
+    connectionId: String(row.connection_id),
+    externalId: String(row.external_id),
+    caption: String(row.caption ?? ""),
+    permalink: String(row.permalink),
+    thumbnailUrl: row.thumbnail_url ? String(row.thumbnail_url) : null,
+    publishedAt: String(row.published_at),
+  };
 }
 
-export async function listMedia(): Promise<InstagramMedia[]> {
+async function readSelectedConnectionCookie() {
+  try {
+    const store = await cookies();
+    const value = store.get(SELECTED_CONNECTION_COOKIE)?.value;
+    return isConnectionId(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function listConnections(): Promise<InstagramConnection[]> {
+  if (isDemoMode) return [demoStore().connection];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("instagram_connections").select("*").order("created_at", { ascending: true });
+  return (data ?? []).map((row) => mapConnection(row as Record<string, unknown>));
+}
+
+export async function getConnection(requestedId?: string | null): Promise<InstagramConnection | null> {
+  const connections = await listConnections();
+  if (isDemoMode) return connections[0] ?? null;
+  const supabase = await createSupabaseServerClient();
+  const { data: settings } = await supabase.from("owner_settings").select("selected_connection_id").maybeSingle();
+  const selectedId = resolveSelectedConnectionId(connections, {
+    requestedId: isConnectionId(requestedId) ? requestedId : null,
+    cookieId: await readSelectedConnectionCookie(),
+    preferredId: settings?.selected_connection_id ? String(settings.selected_connection_id) : null,
+  });
+  return connections.find((item) => item.id === selectedId) ?? null;
+}
+
+async function scopedConnectionId(connectionId?: string | null) {
+  if (isConnectionId(connectionId)) return connectionId;
+  return (await getConnection())?.id ?? null;
+}
+
+export async function listMedia(connectionId?: string | null): Promise<InstagramMedia[]> {
+  if (isDemoMode) return demoStore().media;
+  const scope = await scopedConnectionId(connectionId);
+  if (!scope) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("instagram_media").select("*").eq("connection_id", scope).order("published_at", { ascending: false });
+  return (data ?? []).map((row) => mapMedia(row as Record<string, unknown>));
+}
+
+export async function listAllMedia(): Promise<InstagramMedia[]> {
   if (isDemoMode) return demoStore().media;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.from("instagram_media").select("*").order("published_at", { ascending: false });
-  return (data ?? []).map((row) => ({ id: row.id, connectionId: row.connection_id, externalId: row.external_id, caption: row.caption ?? "", permalink: row.permalink, thumbnailUrl: row.thumbnail_url, publishedAt: row.published_at }));
+  return (data ?? []).map((row) => mapMedia(row as Record<string, unknown>));
 }
 
-export async function listAutomations(): Promise<Automation[]> {
+export async function listAutomations(connectionId?: string | null): Promise<Automation[]> {
   if (isDemoMode) return demoStore().automations.filter((item) => item.status !== "deleted");
+  const scope = await scopedConnectionId(connectionId);
+  if (!scope) return [];
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("automations").select("*").is("deleted_at", null).order("updated_at", { ascending: false });
+  const { data } = await supabase.from("automations").select("*").eq("connection_id", scope).is("deleted_at", null).order("updated_at", { ascending: false });
   return (data ?? []).map(mapAutomation);
 }
 
@@ -59,13 +125,20 @@ export async function getAutomation(id: string): Promise<Automation | null> {
   if (isDemoMode) return demoStore().automations.find((item) => item.id === id && item.status !== "deleted") ?? null;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.from("automations").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
-  return data ? mapAutomation(data) : null;
+  return data ? mapAutomation(data as Record<string, unknown>) : null;
 }
 
-export async function listRuns(): Promise<AutomationRun[]> {
+export async function listRuns(connectionId?: string | null): Promise<AutomationRun[]> {
   if (isDemoMode) return demoStore().runs;
+  const scope = await scopedConnectionId(connectionId);
+  if (!scope) return [];
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("automation_runs").select("*, automations(name)").order("created_at", { ascending: false }).limit(250);
+  const { data } = await supabase
+    .from("automation_runs")
+    .select("*, automations!inner(name, connection_id)")
+    .eq("automations.connection_id", scope)
+    .order("created_at", { ascending: false })
+    .limit(250);
   return (data ?? []).map((row) => ({
     id: row.id, automationId: row.automation_id, automationName: (row.automations as { name?: string } | null)?.name ?? row.automation_name_snapshot,
     mediaExternalId: row.media_external_id, commentId: row.comment_id, commenterScopedId: row.commenter_scoped_id,

@@ -2,6 +2,7 @@ import "server-only";
 import { contentSuggestionSchema } from "@/lib/audience";
 import { isDemoMode } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getConnection } from "@/server/data";
 import { demoStore } from "@/server/demo-store";
 import type { AudienceEvidence, AudienceInsight, AudienceRadarData, AudienceTheme } from "@/types/audience";
 import type { InstagramMedia } from "@/types/domain";
@@ -67,17 +68,19 @@ function filterDemoRadar(filters: AudienceFilters): AudienceRadarData {
 export async function getAudienceRadarData(filters: AudienceFilters): Promise<AudienceRadarData> {
   if (isDemoMode) return filterDemoRadar(filters);
   const supabase = await createSupabaseServerClient();
+  const connection = await getConnection();
+  if (!connection) return { metrics: { analyzedComments: 0, openQuestions: 0, purchaseIntent: 0, contentRequests: 0, objections: 0, lastUpdatedAt: null }, themes: [], insights: [], ideas: [], latestRun: null };
   const since = new Date(Date.now() - filters.periodDays * 86_400_000).toISOString();
-  const { data: mediaRows } = await supabase.from("instagram_media").select("id,external_id,caption");
+  const { data: mediaRows } = await supabase.from("instagram_media").select("id,external_id,caption").eq("connection_id", connection.id);
   const media = (mediaRows ?? []) as Array<{ id: string; external_id: string; caption: string }>;
   const selected = filters.mediaId ? media.find(({ id }) => id === filters.mediaId) : null;
 
-  let runQuery = supabase.from("audience_analysis_runs").select("*").eq("period_days", filters.periodDays).order("created_at", { ascending: false }).limit(1);
+  let runQuery = supabase.from("audience_analysis_runs").select("*").eq("period_days", filters.periodDays).eq("connection_id", connection.id).order("created_at", { ascending: false }).limit(1);
   runQuery = filters.mediaId ? runQuery.eq("media_id", filters.mediaId) : runQuery.is("media_id", null);
   const { data: runRows } = await runQuery;
   const run = runRows?.[0] ?? null;
 
-  let eventQuery = supabase.from("comment_events").select("id,comment_text,commenter_username,published_at,media_external_id").gte("published_at", since).limit(2000);
+  let eventQuery = supabase.from("comment_events").select("id,comment_text,commenter_username,published_at,media_external_id").eq("connection_id", connection.id).gte("published_at", since).limit(2000);
   if (selected) eventQuery = eventQuery.eq("media_external_id", selected.external_id);
   const { data: eventRows } = await eventQuery;
   const events = (eventRows ?? []) as Array<{ id: string; comment_text: string; commenter_username: string; published_at: string; media_external_id: string }>;
