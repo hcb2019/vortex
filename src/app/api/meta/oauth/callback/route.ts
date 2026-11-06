@@ -1,11 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getOwner } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { planInstagramConnectionWrite } from "@/lib/instagram-accounts";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { instagramOauthErrorQuery } from "@/lib/instagram-accounts";
 import { constantTimeTextEqual, encryptSecret } from "@/server/crypto";
 import { instagramGateway } from "@/server/instagram";
+import { MetaApiError } from "@/server/instagram/meta-gateway";
 import { applySelectedConnectionCookie, persistSelectedConnection } from "@/server/instagram/owned-connection";
+import { saveOwnedInstagramConnection } from "@/server/instagram/save-connection";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+function oauthRedirect(error: ReturnType<typeof instagramOauthErrorQuery>) {
+  return NextResponse.redirect(`${env.APP_ORIGIN}/settings?error=${error}`);
+}
+
+function webhookDiagnostic(error: unknown) {
+  if (error instanceof MetaApiError) {
+    return `Webhook: Meta (${error.code ?? error.status}${error.subcode ? `/${error.subcode}` : ""}): ${error.message}`;
+  }
+  if (error instanceof Error) return `Webhook: ${error.message}`;
+  return "Webhook: falha desconhecida ao assinar comentários.";
+}
 
 export async function GET(request: NextRequest) {
   const owner = await getOwner();
@@ -30,44 +44,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${env.APP_ORIGIN}/settings?error=missing_content_publish`);
     }
     const profile = await gateway.getProfile(token.accessToken);
-    await gateway.subscribeToComments(profile.userId, token.accessToken);
     const encrypted = encryptSecret(token.accessToken);
     const expiresAt = token.expiresIn ? new Date(Date.now() + token.expiresIn * 1000).toISOString() : null;
-    const supabase = createSupabaseAdminClient();
-    const { data: existing } = await supabase
-      .from("instagram_connections")
-      .select("id,owner_id")
-      .eq("instagram_user_id", profile.userId)
-      .maybeSingle();
-    const plan = planInstagramConnectionWrite(owner.id, existing ? { id: existing.id, ownerId: existing.owner_id } : null);
-    if (plan.action === "reject") {
-      return NextResponse.redirect(`${env.APP_ORIGIN}/settings?error=oauth`);
+    const saved = await saveOwnedInstagramConnection({
+      ownerId: owner.id,
+      instagramUserId: profile.userId,
+      username: profile.username?.trim() || profile.userId,
+      tokenCiphertext: encrypted.ciphertext,
+      tokenIv: encrypted.iv,
+      tokenTag: encrypted.tag,
+      tokenExpiresAt: expiresAt,
+      apiVersion: env.META_GRAPH_API_VERSION,
+    });
+    if (!saved.ok) return oauthRedirect(instagramOauthErrorQuery(saved.reason));
+    await persistSelectedConnection(owner.id, saved.id);
+    try {
+      // Persist first: webhook subscribe can fail after Meta consent and must
+      // not abort a genuine second-account insert or rewrite the first row.
+      await gateway.subscribeToComments(profile.userId, token.accessToken);
+    } catch (error) {
+      const diagnostic = webhookDiagnostic(error).slice(0, 400);
+      console.error("instagram_oauth_subscribe_failed", {
+        connectionId: saved.id,
+        message: diagnostic.slice(0, 200),
+      });
+      const supabase = createSupabaseAdminClient();
+      await supabase.from("instagram_connections").update({ last_error: diagnostic }).eq("id", saved.id).eq("owner_id", owner.id);
     }
-    const payload = {
-      owner_id: owner.id,
-      instagram_user_id: profile.userId,
-      username: profile.username,
-      token_ciphertext: encrypted.ciphertext,
-      token_iv: encrypted.iv,
-      token_tag: encrypted.tag,
-      token_expires_at: expiresAt,
-      api_version: env.META_GRAPH_API_VERSION,
-      status: "connected",
-      last_error: null,
-      updated_at: new Date().toISOString(),
-    };
-    const saved = plan.action === "update"
-      ? await supabase.from("instagram_connections").update(payload).eq("id", plan.id).eq("owner_id", owner.id).select("id").single()
-      : await supabase.from("instagram_connections").insert(payload).select("id").single();
-    if (saved.error || !saved.data) {
-      return NextResponse.redirect(`${env.APP_ORIGIN}/settings?error=oauth`);
-    }
-    await persistSelectedConnection(owner.id, saved.data.id);
     const response = NextResponse.redirect(`${env.APP_ORIGIN}/settings?connected=1`);
     response.cookies.delete("meta_oauth_state");
-    applySelectedConnectionCookie(response, saved.data.id);
+    applySelectedConnectionCookie(response, saved.id);
     return response;
-  } catch {
-    return NextResponse.redirect(`${env.APP_ORIGIN}/settings?error=oauth`);
+  } catch (error) {
+    console.error("instagram_oauth_callback_failed", {
+      name: error instanceof Error ? error.name : "Unknown",
+      message: error instanceof Error ? error.message.slice(0, 200) : "unknown",
+      code: error instanceof MetaApiError ? error.code ?? error.status : null,
+    });
+    return oauthRedirect(instagramOauthErrorQuery("meta"));
   }
 }
