@@ -4,7 +4,7 @@ O guia interativo em `/connection-guide` é a fonte principal para configurar o 
 
 ## Quem faz esta configuração
 
-O administrador que instalou o Vortex configura a Meta e a Vercel uma vez. Um usuário comum não cria outro aplicativo na Meta. Depois que a instalação estiver pronta, ele apenas entra no Vortex e clica em "Conectar Instagram".
+O administrador que instalou o Vortex configura a Meta e a Vercel uma vez. Um usuário comum não cria outro aplicativo na Meta. Depois que a instalação estiver pronta, ele apenas entra no Vortex e clica em "Conectar Instagram". O mesmo login (`OWNER_EMAIL`) pode manter várias contas Business ou Creator: reconectar uma não substitui as outras.
 
 ## Caminho usado pelo Vortex
 
@@ -51,7 +51,7 @@ O administrador cria `META_WEBHOOK_VERIFY_TOKEN`, salva o mesmo valor na Vercel 
 1. Adicione a conta como Testador do Instagram e aceite o convite.
 2. Salve as variáveis na Vercel e faça um novo deploy.
 3. Configure o webhook e as URLs do login.
-4. Conecte a conta pelo Vortex.
+4. Conecte a conta pelo Vortex. Para um segundo perfil, use **Conectar outra conta** em Integração — o painel passa a operar na conta selecionada, e os webhooks continuam a chegar por `instagram_user_id`.
 5. Crie uma automação de teste.
 6. Comente em um Reel usando uma segunda conta.
 7. Confira a resposta pública, a private reply e o Histórico.

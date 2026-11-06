@@ -3,6 +3,7 @@ import { isDemoMode } from "@/lib/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { pipelinePostInputSchema } from "@/lib/pipeline";
 import { hashPipelineApiKey } from "@/server/crypto";
+import { findOwnedInstagramConnection } from "@/server/instagram/owned-connection";
 import { createPipelinePost, PipelineError } from "@/server/pipeline";
 
 export const runtime = "nodejs";
@@ -111,11 +112,13 @@ export async function POST(request: Request) {
         fields: parsed.error.flatten().fieldErrors,
       }, { status: 422 });
     }
+    const selected = auth.source === "ui" ? await findOwnedInstagramConnection(auth.ownerId) : null;
     const post = await createPipelinePost({
       ownerId: auth.ownerId,
       input: parsed.data,
       videoFile,
       videoUrl,
+      connectionId: selected?.id,
     });
     return Response.json({
       id: post.id,

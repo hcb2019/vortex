@@ -31,7 +31,7 @@ export async function deleteMetaDerivedData(instagramUserId: string) {
   const supabase = createSupabaseAdminClient();
   const { data: connection } = await supabase.from("instagram_connections").select("id,owner_id").eq("instagram_user_id", instagramUserId).maybeSingle();
   if (!connection) return;
-  const { error: analysisError } = await supabase.from("audience_analysis_runs").delete().eq("owner_id", connection.owner_id);
+  const { error: analysisError } = await supabase.from("audience_analysis_runs").delete().eq("connection_id", connection.id);
   if (analysisError) throw new Error("Não foi possível remover os dados de audiência.");
   const { error: connectionError } = await supabase.from("instagram_connections").delete().eq("id", connection.id);
   if (connectionError) throw new Error("Não foi possível remover a conexão do Instagram.");

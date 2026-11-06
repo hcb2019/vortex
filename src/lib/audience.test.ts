@@ -31,6 +31,7 @@ describe("inteligência de audiência", () => {
     expect(audienceFingerprint(source, 30, null)).not.toBe(audienceFingerprint(source, 30, "reel-1"));
     expect(audienceFingerprint(source, 30, null, "prompt-v1")).not.toBe(audienceFingerprint(source, 30, null, "prompt-v2"));
     expect(audienceFingerprint(source, 30, null)).not.toBe(audienceFingerprint([{ ...source[0]!, text: "Outro" }], 30, null));
+    expect(audienceFingerprint(source, 30, null, "", "conn-a")).not.toBe(audienceFingerprint(source, 30, null, "", "conn-b"));
   });
 
   it("rejeita categorias e evidências fora do schema estruturado", () => {

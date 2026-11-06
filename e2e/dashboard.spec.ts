@@ -40,6 +40,7 @@ test("keeps history actions and integration controls accessible on mobile", asyn
   await expect(retryButton).toHaveCSS("min-height", "48px");
 
   await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Contas do Instagram" })).toBeVisible();
   const connectionAction = page.locator(".connection-actions .button").first();
   await expect(connectionAction).toBeVisible();
   await connectionAction.scrollIntoViewIfNeeded();

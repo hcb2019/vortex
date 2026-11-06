@@ -84,6 +84,7 @@ pnpm config:check
 Controles principais:
 
 - owner-only por magic link e `OWNER_EMAIL`;
+- várias contas Instagram Business/Creator no mesmo owner, com troca no painel;
 - RLS por `owner_id`;
 - OAuth com `state` de uso único;
 - webhook HMAC sobre o corpo bruto;

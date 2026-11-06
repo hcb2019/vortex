@@ -15,6 +15,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ContentStudioProvider, CONTENT_PROMPT_VERSION } from "@/server/content-studio/provider";
 import { getContentProject, getCreatorProfile } from "@/server/content-studio/data";
 import { generateStudioIdeas } from "@/server/content-studio/ideas";
+import { getConnection } from "@/server/data";
 import { demoStore, saveDemoAutomation } from "@/server/demo-store";
 import type { StudioIdea } from "@/lib/studio-ideas";
 import type { ContentPackage, ContentProject } from "@/types/content-studio";
@@ -137,7 +138,7 @@ export async function createAutomationFromProject(formData: FormData) {
     const saved = saveDemoAutomation({ name: project.title.slice(0,80), mediaId: project.mediaId ?? "", keyword: pack.selectedKeyword, keywordVariants: buildKeywordVariants(pack.selectedKeyword), publicReply: pack.publicReplies[0], publicReplyVariants: pack.publicReplies, dmMessage: pack.dmMessages[0], dmMessageVariants: pack.dmMessages, destinationUrl, conversationFlow: { steps: [] }, appendUtmToButtons: true, requireFollow: false, followGateMessage: "Se você já me segue, digite PRONTO. Se não, me segue e depois volta aqui e digita PRONTO.", notFollowingMessage: "Poxa, você quer o conteúdo e ainda não me segue? Me segue primeiro e depois digita PRONTO aqui de novo.", status: "draft" });
     project.automationId = saved.id; project.status = "automation_draft"; redirect(`/automations/${saved.id}/edit?source=studio`);
   }
-  const supabase = await createSupabaseServerClient(); const { data: connection } = await supabase.from("instagram_connections").select("id").eq("owner_id",owner.id).single(); if (!connection) redirect(`/studio/${id}?error=connection`);
+  const supabase = await createSupabaseServerClient(); const connection = await getConnection(); if (!connection) redirect(`/studio/${id}?error=connection`);
   const { data: automation } = await supabase.from("automations").insert({ owner_id: owner.id, connection_id: connection.id, media_id: project.mediaId, content_project_id: id, name: project.title.slice(0,80), keyword: pack.selectedKeyword, keyword_normalized: normalizeKeyword(pack.selectedKeyword), keyword_variants: buildKeywordVariants(pack.selectedKeyword), public_reply: pack.publicReplies[0], public_reply_variants: pack.publicReplies, dm_message: pack.dmMessages[0], dm_message_variants: pack.dmMessages, destination_url: destinationUrl, status: "draft" }).select("id").single();
   if (!automation) redirect(`/studio/${id}?error=automation`);
   await supabase.from("content_projects").update({ automation_id: automation.id, status: "automation_draft" }).eq("id",id).eq("owner_id",owner.id);

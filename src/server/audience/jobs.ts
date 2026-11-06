@@ -7,7 +7,7 @@ import type { AudienceProviderResult } from "@/types/audience";
 
 const PROMPT_VERSION = "audience-v2-humanizer";
 
-export async function queueAudienceAnalysis(ownerId: string, periodDays: 7 | 30 | 90, mediaId: string | null) {
+export async function queueAudienceAnalysis(ownerId: string, periodDays: 7 | 30 | 90, mediaId: string | null, connectionId?: string | null) {
   if (isDemoMode) return { id: "70000000-0000-4000-8000-000000000001", outcome: "queued" as const };
   const supabase = createSupabaseAdminClient();
   const today = new Date();
@@ -18,19 +18,23 @@ export async function queueAudienceAnalysis(ownerId: string, periodDays: 7 | 30 
   const since = new Date(Date.now() - periodDays * 86_400_000).toISOString();
   let mediaExternalId: string | null = null;
   if (mediaId) {
-    const { data: media } = await supabase.from("instagram_media").select("external_id").eq("id", mediaId).eq("owner_id", ownerId).maybeSingle();
+    let mediaQuery = supabase.from("instagram_media").select("external_id,connection_id").eq("id", mediaId).eq("owner_id", ownerId);
+    if (connectionId) mediaQuery = mediaQuery.eq("connection_id", connectionId);
+    const { data: media } = await mediaQuery.maybeSingle();
     if (!media) return { id: null, outcome: "invalid_media" as const };
     mediaExternalId = media.external_id;
+    connectionId ??= media.connection_id;
   }
   let query = supabase.from("comment_events").select("id,comment_text,published_at").eq("owner_id", ownerId).gte("published_at", since).order("published_at", { ascending: false }).limit(env.AI_MAX_COMMENTS_PER_RUN);
+  if (connectionId) query = query.eq("connection_id", connectionId);
   if (mediaExternalId) query = query.eq("media_external_id", mediaExternalId);
   const { data: comments, error } = await query;
   if (error) throw new Error("Não foi possível preparar a análise.");
   if (!comments?.length) return { id: null, outcome: "no_comments" as const };
-  const fingerprint = audienceFingerprint(comments.map((item) => ({ id: item.id, text: item.comment_text, publishedAt: item.published_at })), periodDays, mediaId, PROMPT_VERSION);
+  const fingerprint = audienceFingerprint(comments.map((item) => ({ id: item.id, text: item.comment_text, publishedAt: item.published_at })), periodDays, mediaId, PROMPT_VERSION, connectionId ?? "");
   const { data: existing } = await supabase.from("audience_analysis_runs").select("id,status").eq("owner_id", ownerId).eq("fingerprint", fingerprint).maybeSingle();
   if (existing) return { id: existing.id, outcome: "duplicate" as const };
-  const { data: run, error: insertError } = await supabase.from("audience_analysis_runs").insert({ owner_id: ownerId, media_id: mediaId, period_days: periodDays, model: env.OPENAI_AUDIENCE_MODEL, prompt_version: PROMPT_VERSION, fingerprint, comment_count: comments.length, status: "queued" }).select("id").single();
+  const { data: run, error: insertError } = await supabase.from("audience_analysis_runs").insert({ owner_id: ownerId, connection_id: connectionId, media_id: mediaId, period_days: periodDays, model: env.OPENAI_AUDIENCE_MODEL, prompt_version: PROMPT_VERSION, fingerprint, comment_count: comments.length, status: "queued" }).select("id").single();
   if (insertError || !run) throw new Error("Não foi possível criar a análise.");
   const { error: queueError } = await supabase.rpc("enqueue_audience_analysis", { run_id: run.id });
   if (queueError) {
@@ -63,13 +67,12 @@ export async function processAudienceQueueBatch(batchSize = 2) {
 export async function queueScheduledAudienceAnalyses(minimumPending = 20) {
   if (isDemoMode || !env.OPENAI_API_KEY) return { queued: 0 };
   const supabase = createSupabaseAdminClient();
-  const { data: connections } = await supabase.from("instagram_connections").select("owner_id").eq("status", "connected");
-  const ownerIds = [...new Set((connections ?? []).map(({ owner_id }) => owner_id))];
+  const { data: connections } = await supabase.from("instagram_connections").select("id,owner_id").eq("status", "connected");
   let queued = 0;
-  for (const ownerId of ownerIds) {
-    const { count } = await supabase.from("comment_events").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).in("analysis_status", ["pending", "failed"]);
+  for (const connection of connections ?? []) {
+    const { count } = await supabase.from("comment_events").select("id", { count: "exact", head: true }).eq("connection_id", connection.id).in("analysis_status", ["pending", "failed"]);
     if ((count ?? 0) < minimumPending) continue;
-    const result = await queueAudienceAnalysis(ownerId, 30, null);
+    const result = await queueAudienceAnalysis(connection.owner_id, 30, null, connection.id);
     if (result.outcome === "queued") queued += 1;
   }
   return { queued };
@@ -88,9 +91,12 @@ async function processAudienceRun(runId: string) {
       const { data: selectedMedia } = await supabase.from("instagram_media").select("external_id").eq("id", run.media_id).single();
       mediaExternalId = selectedMedia?.external_id ?? null;
     }
-    const { data: mediaRows } = await supabase.from("instagram_media").select("id,external_id,caption").eq("owner_id", run.owner_id);
+    let mediaQuery = supabase.from("instagram_media").select("id,external_id,caption").eq("owner_id", run.owner_id);
+    if (run.connection_id) mediaQuery = mediaQuery.eq("connection_id", run.connection_id);
+    const { data: mediaRows } = await mediaQuery;
     const mediaByExternal = new Map((mediaRows ?? []).map((item) => [item.external_id, item]));
     let query = supabase.from("comment_events").select("id,comment_text,published_at,media_external_id").eq("owner_id", run.owner_id).gte("published_at", since).order("published_at", { ascending: false }).limit(env.AI_MAX_COMMENTS_PER_RUN);
+    if (run.connection_id) query = query.eq("connection_id", run.connection_id);
     if (mediaExternalId) query = query.eq("media_external_id", mediaExternalId);
     const { data: commentRows } = await query;
     const comments = commentRows ?? [];

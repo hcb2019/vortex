@@ -10,8 +10,9 @@ import { getAutomation, listMedia, listRuns } from "@/server/data";
 
 export default async function AutomationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [item, media, allRuns] = await Promise.all([getAutomation(id), listMedia(), listRuns()]);
+  const item = await getAutomation(id);
   if (!item) notFound();
+  const [media, allRuns] = await Promise.all([listMedia(item.connectionId), listRuns(item.connectionId)]);
   const reel = media.find((entry) => entry.id === item.mediaId);
   const runs = allRuns.filter((run) => run.automationId === item.id);
   return <div className="page-shell"><Link href="/automations" className="back-link"><ArrowLeft size={15} /> Voltar para automações</Link><header className="detail-header"><div><div className="title-line"><h1>{item.name}</h1><StatusBadge status={item.status} /></div><p>Versão {item.version} · atualizada {formatDate(item.updatedAt)}</p></div><div className="header-actions"><Link className="button button-secondary" href={`/automations/${item.id}/edit`}><Pencil size={15} /> Editar</Link><form action={setAutomationStatus}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="status" value={item.status === "active" ? "paused" : "active"} /><Button>{item.status === "active" ? "Pausar" : "Ativar"}</Button></form></div></header>

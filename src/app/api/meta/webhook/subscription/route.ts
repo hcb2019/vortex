@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/server/crypto";
 import { instagramGateway } from "@/server/instagram";
 import { MetaApiError } from "@/server/instagram/meta-gateway";
+import { findOwnedInstagramConnection, readRequestedConnectionId } from "@/server/instagram/owned-connection";
 
 function settingsRedirect(result: "active" | "restored" | "error") {
   const url = new URL("/settings", env.APP_ORIGIN);
@@ -18,14 +19,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid origin" }, { status: 403 });
   }
   if (isDemoMode) return settingsRedirect("active");
-
-  const supabase = createSupabaseAdminClient();
-  const { data: connection } = await supabase
-    .from("instagram_connections")
-    .select("*")
-    .eq("owner_id", owner.id)
-    .single();
+  const connectionId = await readRequestedConnectionId(request);
+  const connection = await findOwnedInstagramConnection(owner.id, connectionId);
   if (!connection) return settingsRedirect("error");
+  const supabase = createSupabaseAdminClient();
 
   try {
     const accessToken = decryptSecret({

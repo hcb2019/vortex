@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/server/crypto";
 import { instagramGateway } from "@/server/instagram";
 import { MetaApiError } from "@/server/instagram/meta-gateway";
+import { findOwnedInstagramConnection } from "@/server/instagram/owned-connection";
 
 export const MEDIA_SYNC_MIN_INTERVAL_MS = 2 * 60 * 1000;
 export const MEDIA_AUTO_SYNC_STALE_MS = 5 * 60 * 1000;
@@ -21,14 +22,10 @@ export function isMediaSyncStale(lastSyncAt: string | null | undefined, staleAft
   return Date.now() - new Date(lastSyncAt).getTime() >= staleAfterMs;
 }
 
-export async function syncInstagramMediaForOwner(ownerId: string, minimumIntervalMs = MEDIA_SYNC_MIN_INTERVAL_MS) {
+export async function syncInstagramMediaForOwner(ownerId: string, minimumIntervalMs = MEDIA_SYNC_MIN_INTERVAL_MS, connectionId?: string | null) {
   const supabase = createSupabaseAdminClient();
-  const { data: connection, error: connectionError } = await supabase
-    .from("instagram_connections")
-    .select("*")
-    .eq("owner_id", ownerId)
-    .single();
-  if (connectionError || !connection) throw new MediaSyncError("Não foi possível ler a conexão.", "CONNECTION_UNAVAILABLE");
+  const connection = await findOwnedInstagramConnection(ownerId, connectionId);
+  if (!connection) throw new MediaSyncError("Não foi possível ler a conexão.", "CONNECTION_UNAVAILABLE");
 
   if (!isMediaSyncStale(connection.last_sync_at, minimumIntervalMs)) {
     return { synced: 0, skipped: true, message: "Os Reels já foram atualizados há poucos minutos." };

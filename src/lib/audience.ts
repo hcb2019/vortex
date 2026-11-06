@@ -61,12 +61,12 @@ export function chunkAudienceComments<T>(items: T[], size = 100) {
   return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
 }
 
-export function audienceFingerprint(comments: Array<{ id: string; text: string; publishedAt: string }>, periodDays: number, mediaId: string | null, promptVersion = "") {
+export function audienceFingerprint(comments: Array<{ id: string; text: string; publishedAt: string }>, periodDays: number, mediaId: string | null, promptVersion = "", connectionId = "") {
   const stable = comments
     .map(({ id, text, publishedAt }) => `${id}\u0000${text}\u0000${publishedAt}`)
     .sort()
     .join("\u0001");
-  return createHash("sha256").update(`${promptVersion}\u0000${periodDays}\u0000${mediaId ?? "all"}\u0000${stable}`).digest("hex");
+  return createHash("sha256").update(`${promptVersion}\u0000${periodDays}\u0000${mediaId ?? "all"}\u0000${connectionId}\u0000${stable}`).digest("hex");
 }
 
 export function confidenceLabel(value: number) {

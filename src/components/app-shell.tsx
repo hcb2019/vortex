@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { AtSign, BarChart3, Bolt, BookOpenCheck, Clapperboard, History, PlusCircle, Radar, Settings2 } from "lucide-react";
+import { BarChart3, Bolt, BookOpenCheck, Clapperboard, History, PlusCircle, Radar, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/brand-logo";
+import { AccountSwitcher } from "@/features/settings/account-switcher";
 import { isDemoMode } from "@/lib/env";
+import type { InstagramConnection } from "@/types/domain";
 
 const nav = [
   { href: "/dashboard", label: "Visão geral", icon: BarChart3 },
@@ -15,12 +17,20 @@ const nav = [
   { href: "/settings", label: "Integração", icon: Settings2 },
 ];
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  connections,
+  selectedConnection,
+}: {
+  children: ReactNode;
+  connections: InstagramConnection[];
+  selectedConnection: InstagramConnection | null;
+}) {
   return <div className="app-shell">
     <aside className="sidebar">
       <BrandLogo />
       <nav aria-label="Navegação principal">{nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href}><Icon size={18} /><span>{label}</span></Link>)}</nav>
-      <div className="sidebar-foot"><div className="account-avatar"><AtSign size={16} /></div><div><strong>{isDemoMode ? "vortex.demo" : "Instagram"}</strong><span>{isDemoMode ? "Modo demonstração" : "Conta profissional"}</span></div></div>
+      <div className="sidebar-foot"><AccountSwitcher connections={connections} selected={selectedConnection} /></div>
     </aside>
     <main className="main-content">{isDemoMode && <div className="demo-banner"><span>Modo demonstração</span><p>Dados simulados — nenhuma mensagem será enviada.</p></div>}{children}</main>
   </div>;
