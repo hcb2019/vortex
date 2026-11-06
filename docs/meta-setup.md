@@ -48,12 +48,14 @@ O administrador cria `META_WEBHOOK_VERIFY_TOKEN`, salva o mesmo valor na Vercel 
 
 ## Teste
 
-1. Adicione a conta como Testador do Instagram e aceite o convite.
+1. Adicione **cada** conta (incluindo a segunda e as seguintes) como Testador do Instagram e aceite o convite no app. Enquanto o aplicativo Meta estiver em Desenvolvimento, um perfil sem essa função pode concluir o consentimento OAuth e ainda assim ser recusado no Graph (código 100, `Unsupported request`).
 2. Salve as variáveis na Vercel e faça um novo deploy.
 3. Configure o webhook e as URLs do login.
-4. Conecte a conta pelo Vortex. Para um segundo perfil, use **Conectar outra conta** em Integração — o painel passa a operar na conta selecionada, e os webhooks continuam a chegar por `instagram_user_id`.
+4. Conecte a conta pelo Vortex. Para um segundo perfil, use **Conectar outra conta** em Integração — o painel passa a operar na conta selecionada, e os webhooks continuam a chegar por `instagram_user_id`. Reautorizar um perfil não desconecta os demais.
 5. Crie uma automação de teste.
 6. Comente em um Reel usando uma segunda conta.
 7. Confira a resposta pública, a private reply e o Histórico.
+
+Se a Integração voltar com `error=oauth_restricted`, o Vortex não persiste o token: a Meta recusou as chamadas ao Graph. Confira o papel de testador e o modo do app antes de tentar de novo.
 
 Para liberar contas que não são testadoras, siga o bloco 5 da Meta, conclua a análise do aplicativo e solicite o nível de acesso exigido para as permissões usadas.

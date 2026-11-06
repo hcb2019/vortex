@@ -218,11 +218,12 @@ export default async function ConnectionGuidePage() {
         <Expected>A página mostra os cinco blocos numerados e as credenciais específicas do Instagram.</Expected>
       </StepShell>
 
-      <StepShell id="tester" number="04" location="Funções do app e bloco 2" title="Adicione a conta que fará o primeiro teste" intro="Enquanto o aplicativo não estiver liberado para o público, a conta precisa ser testadora.">
+      <StepShell id="tester" number="04" location="Funções do app e bloco 2" title="Adicione cada conta que vai conectar" intro="Enquanto o aplicativo estiver em Desenvolvimento, cada perfil Business ou Creator — inclusive o segundo — precisa ser testador. Sem isso, o consentimento da Meta pode concluir e o Graph ainda recusar o token.">
         <TaskList>
           <li>No menu lateral da Meta, abra <strong>Funções do app → Funções</strong>.</li>
-          <li>Adicione sua conta profissional como <strong>Testador do Instagram</strong>.</li>
+          <li>Adicione cada conta profissional como <strong>Testador do Instagram</strong>.</li>
           <li>Entre nessa conta pelo Instagram. Abra <strong>Configurações → Apps e sites → Convites de teste</strong> e aceite o convite.</li>
+          <li>Repita o convite e o aceite para qualquer perfil extra antes de usar <strong>Conectar outra conta</strong>.</li>
           <li>Volte ao bloco 2, <strong>Gerar tokens de acesso</strong>, e clique em <strong>Adicionar conta</strong>.</li>
         </TaskList>
         <div className="setup-dont-token"><KeyRound size={20} /><div><strong>Não use &quot;Gerar token&quot; para conectar o Vortex</strong><p>Esse token é útil apenas para testes dentro da Meta. O botão &quot;Conectar Instagram&quot; do Vortex cria e salva o token correto automaticamente.</p></div></div>
@@ -285,7 +286,7 @@ export default async function ConnectionGuidePage() {
         <TaskList>
           <li>Clique em <strong>Conectar Instagram</strong> e autorize as permissões solicitadas.</li>
           <li>Ao voltar, confirme que o painel mostra a conta conectada e os Reels sincronizados.</li>
-          <li>Para um segundo perfil Business ou Creator, abra Integração e use <strong>Conectar outra conta</strong>. Reautorizar um @handle não apaga o outro.</li>
+          <li>Para um segundo perfil Business ou Creator, confirme que ele também é testador, abra Integração e use <strong>Conectar outra conta</strong>. Reautorizar um @handle não apaga o outro.</li>
           <li>Crie uma automação com uma palavra fácil de testar, por exemplo <strong>GUIA2026</strong>.</li>
           <li>Com uma segunda conta, comente exatamente essa palavra em um Reel.</li>
           <li>Confira a resposta pública, a solicitação no Direct e o registro no Histórico.</li>
@@ -309,6 +310,7 @@ export default async function ConnectionGuidePage() {
         ["Aparecem permissões pages_*", "Você abriu Facebook Login. Volte para a configuração com Login do Instagram."],
         ["O webhook verifica, mas não chega comentário", "Deixe comments assinado. Depois reconecte a conta para o Vortex executar a assinatura por usuário."],
         ["O login volta com erro", "Compare a Valid OAuth Redirect URI com a URL deste guia. HTTPS, caminho e barra final precisam coincidir."],
+        ["O login volta com código 100", "O consentimento concluiu, mas a Meta recusou o token no Graph. Enquanto o app estiver em Desenvolvimento, adicione esse perfil como Testador do Instagram, aceite o convite e tente de novo. As contas já conectadas permanecem."],
         ["A DM não chegou", "Use uma segunda conta e confira a pasta Solicitações do Direct. A Meta permite uma private reply por comentário."],
       ].map(([title, answer]) => <details key={title}><summary><CircleHelp size={16} />{title}<ChevronRight size={15} /></summary><p>{answer}</p></details>)}</div>
     </section>

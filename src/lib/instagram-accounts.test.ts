@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   INSTAGRAM_CONNECTION_CONFLICT_TARGET,
   instagramOauthErrorQuery,
+  instagramOauthFailureFromMetaError,
   isConnectionId,
   planInstagramConnectionWrite,
   resolveSelectedConnectionId,
@@ -88,6 +89,26 @@ describe("multi-conta Instagram", () => {
     expect(instagramOauthErrorQuery("owned_by_other")).toBe("oauth_conflict");
     expect(instagramOauthErrorQuery("save_failed")).toBe("oauth");
     expect(instagramOauthErrorQuery("meta")).toBe("oauth");
+    expect(instagramOauthErrorQuery("restricted")).toBe("oauth_restricted");
+  });
+
+  it("mapeia o code 100 Unsupported request para o erro de testador", () => {
+    expect(instagramOauthFailureFromMetaError({
+      code: "100",
+      message: "Unsupported request - method type: get",
+    })).toBe("restricted");
+    expect(instagramOauthFailureFromMetaError({
+      code: 100,
+      message: "Unsupported request - method type: post",
+    })).toBe("restricted");
+    expect(instagramOauthFailureFromMetaError({
+      code: "190",
+      message: "Invalid OAuth access token",
+    })).toBe("meta");
+    expect(instagramOauthFailureFromMetaError({
+      code: "100",
+      message: "Invalid parameter",
+    })).toBe("meta");
   });
 });
 
