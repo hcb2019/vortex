@@ -14,6 +14,7 @@ export class MetaApiError extends Error {
     readonly requestId?: string,
   ) {
     super(message);
+    this.name = "MetaApiError";
   }
   get transient() { return this.status === 429 || this.status >= 500; }
 }
@@ -67,25 +68,18 @@ async function metaFetch<T>(path: string, options: MetaFetchOptions, attempt = 1
   throw error;
 }
 
-async function tokenFetch(path: "/access_token" | "/refresh_access_token", params: URLSearchParams) {
-  const endpoint = new URL(path, "https://graph.instagram.com");
-  endpoint.search = params.toString();
-  const response = await fetch(endpoint, {
-    method: "GET",
-    redirect: "error",
-    signal: AbortSignal.timeout(12_000),
-    headers: { Accept: "application/json" },
-  }).catch((cause) => {
-    throw new MetaApiError(
-      cause instanceof Error && cause.name === "TimeoutError"
-        ? "Tempo limite da Meta excedido."
-        : "Meta indisponível.",
-      0,
-      "NETWORK",
-      undefined,
-      true,
-    );
-  });
+function graphTokenUrl(path: "/access_token" | "/refresh_access_token") {
+  return new URL(path, "https://graph.instagram.com");
+}
+
+function isUnsupportedHttpMethod(error: unknown, method: "get" | "post") {
+  return error instanceof MetaApiError
+    && error.code === "100"
+    && error.message.toLowerCase().includes("unsupported request")
+    && error.message.toLowerCase().includes(`method type: ${method}`);
+}
+
+async function parseTokenResponse(response: Response) {
   if (response.ok) {
     const data = await response.json() as MetaTokenResponse;
     if (!data.access_token) throw new MetaApiError("A Meta não devolveu um token válido.", 502, "INVALID_TOKEN_RESPONSE");
@@ -106,6 +100,48 @@ async function tokenFetch(path: "/access_token" | "/refresh_access_token", param
     body.error?.error_subcode ? String(body.error.error_subcode) : undefined,
     response.headers.get("x-fb-request-id") ?? undefined,
   );
+}
+
+async function tokenRequest(url: URL, init: RequestInit) {
+  const response = await fetch(url, {
+    ...init,
+    redirect: "error",
+    signal: AbortSignal.timeout(12_000),
+    headers: { Accept: "application/json", ...init.headers },
+  }).catch((cause) => {
+    throw new MetaApiError(
+      cause instanceof Error && cause.name === "TimeoutError"
+        ? "Tempo limite da Meta excedido."
+        : "Meta indisponível.",
+      0,
+      "NETWORK",
+      undefined,
+      true,
+    );
+  });
+  return parseTokenResponse(response);
+}
+
+async function tokenFetch(path: "/access_token" | "/refresh_access_token", params: URLSearchParams) {
+  // Meta still documents GET /access_token for ig_exchange_token, but Graph
+  // currently rejects many of those calls with code 100 "method type: get".
+  // POST first (form-urlencoded, secret in the body) matches that Graph
+  // behavior; GET remains the documented fallback when POST is the
+  // unsupported method. Role-less tokens fail both and surface as code 100.
+  const endpoint = graphTokenUrl(path);
+  try {
+    return await tokenRequest(endpoint, {
+      method: "POST",
+      body: params,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+  } catch (error) {
+    if (!isUnsupportedHttpMethod(error, "post")) throw error;
+    console.info("instagram_token_fetch_retry_get", { path });
+    const getUrl = graphTokenUrl(path);
+    getUrl.search = params.toString();
+    return tokenRequest(getUrl, { method: "GET" });
+  }
 }
 
 async function exchangeForLongLivedToken(shortLivedToken: string) {

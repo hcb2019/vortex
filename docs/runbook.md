@@ -22,6 +22,11 @@ Configure um job diário para fazer POST em `/api/internal/jobs/analyze` com o m
 - `Renovação do token: Meta (190)`: o token já expirou ou foi revogado e não
   pode mais ser renovado; reautorize uma vez. Conexões ainda válidas são
   renovadas automaticamente.
+- `instagram_oauth_callback_failed` com Meta código `100` / `Unsupported request`:
+  o consentimento concluiu, mas o Graph recusou o token (troca de longa
+  duração ou `/me`). Em Desenvolvimento, cada perfil precisa ser Testador do
+  Instagram e aceitar o convite. A Integração mostra `error=oauth_restricted`.
+  Não desconecte contas já autorizadas para investigar.
 - `partial`: uma das duas etapas funcionou; não reenvie manualmente sem verificar o Instagram.
 - `ambiguous`: houve timeout após a chamada; conferir na interface do Instagram antes de qualquer nova tentativa.
 - `429`/`5xx`: o cliente tenta até três vezes com backoff e `Retry-After`.

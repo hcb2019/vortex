@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getOwner } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { instagramOauthErrorQuery } from "@/lib/instagram-accounts";
+import { instagramOauthErrorQuery, instagramOauthFailureFromMetaError } from "@/lib/instagram-accounts";
 import { constantTimeTextEqual, encryptSecret } from "@/server/crypto";
 import { instagramGateway } from "@/server/instagram";
 import { MetaApiError } from "@/server/instagram/meta-gateway";
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   const state = request.nextUrl.searchParams.get("state") ?? "";
   const savedState = request.cookies.get("meta_oauth_state")?.value ?? "";
   if (!code || !state || !savedState || !constantTimeTextEqual(state, savedState)) return Response.json({ error: "Invalid OAuth state" }, { status: 400 });
+  let stage: "exchange" | "profile" | "save" | "select" = "exchange";
   try {
     const gateway = instagramGateway();
     const token = await gateway.exchangeCode(code, `${env.APP_ORIGIN}/api/meta/oauth/callback`);
@@ -43,9 +44,11 @@ export async function GET(request: NextRequest) {
     if (token.permissions && !token.permissions.includes("instagram_business_content_publish")) {
       return NextResponse.redirect(`${env.APP_ORIGIN}/settings?error=missing_content_publish`);
     }
+    stage = "profile";
     const profile = await gateway.getProfile(token.accessToken);
     const encrypted = encryptSecret(token.accessToken);
     const expiresAt = token.expiresIn ? new Date(Date.now() + token.expiresIn * 1000).toISOString() : null;
+    stage = "save";
     const saved = await saveOwnedInstagramConnection({
       ownerId: owner.id,
       instagramUserId: profile.userId,
@@ -57,6 +60,7 @@ export async function GET(request: NextRequest) {
       apiVersion: env.META_GRAPH_API_VERSION,
     });
     if (!saved.ok) return oauthRedirect(instagramOauthErrorQuery(saved.reason));
+    stage = "select";
     await persistSelectedConnection(owner.id, saved.id);
     try {
       // Persist first: webhook subscribe can fail after Meta consent and must
@@ -80,7 +84,12 @@ export async function GET(request: NextRequest) {
       name: error instanceof Error ? error.name : "Unknown",
       message: error instanceof Error ? error.message.slice(0, 200) : "unknown",
       code: error instanceof MetaApiError ? error.code ?? error.status : null,
+      subcode: error instanceof MetaApiError ? error.subcode ?? null : null,
+      requestId: error instanceof MetaApiError ? error.requestId ?? null : null,
+      stage,
     });
-    return oauthRedirect(instagramOauthErrorQuery("meta"));
+    return oauthRedirect(instagramOauthErrorQuery(
+      error instanceof MetaApiError ? instagramOauthFailureFromMetaError(error) : "meta",
+    ));
   }
 }

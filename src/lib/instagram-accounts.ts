@@ -48,10 +48,22 @@ export function planInstagramConnectionWrite(
   return { action: "update", id: existing.id };
 }
 
-export type InstagramOauthFailure = "owned_by_other" | "save_failed" | "meta";
+export type InstagramOauthFailure = "owned_by_other" | "save_failed" | "meta" | "restricted";
 
 export function instagramOauthErrorQuery(reason: InstagramOauthFailure) {
-  return reason === "owned_by_other" ? "oauth_conflict" : "oauth";
+  if (reason === "owned_by_other") return "oauth_conflict";
+  if (reason === "restricted") return "oauth_restricted";
+  return "oauth";
+}
+
+export function instagramOauthFailureFromMetaError(error: {
+  code?: string | number | null;
+  message?: string;
+}): InstagramOauthFailure {
+  const code = error.code == null ? "" : String(error.code);
+  const message = error.message?.toLowerCase() ?? "";
+  if (code === "100" && message.includes("unsupported request")) return "restricted";
+  return "meta";
 }
 
 export interface InstagramConnectionWritePayload {
