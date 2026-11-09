@@ -9,7 +9,16 @@ import {
 } from "@/lib/instagram-accounts";
 import { demoStore } from "@/server/demo-store";
 import { readConversationFlow } from "@/lib/domain";
-import type { Automation, AutomationRun, DashboardMetrics, InstagramConnection, InstagramMedia } from "@/types/domain";
+import type { Automation, AutomationRun, DashboardMetrics, InstagramConnection, InstagramMedia, InstagramMediaProductType, InstagramMediaType } from "@/types/domain";
+
+function readMediaProductType(value: unknown): InstagramMediaProductType {
+  return value === "FEED" ? "FEED" : "REELS";
+}
+
+function readMediaType(value: unknown, productType: InstagramMediaProductType): InstagramMediaType {
+  if (value === "CAROUSEL_ALBUM" || value === "IMAGE" || value === "VIDEO") return value;
+  return productType === "REELS" ? "VIDEO" : "IMAGE";
+}
 
 function mapConnection(row: Record<string, unknown>): InstagramConnection {
   return {
@@ -50,10 +59,13 @@ function mapAutomation(row: Record<string, unknown>): Automation {
 }
 
 function mapMedia(row: Record<string, unknown>): InstagramMedia {
+  const mediaProductType = readMediaProductType(row.media_product_type);
   return {
     id: String(row.id),
     connectionId: String(row.connection_id),
     externalId: String(row.external_id),
+    mediaProductType,
+    mediaType: readMediaType(row.media_type, mediaProductType),
     caption: String(row.caption ?? ""),
     permalink: String(row.permalink),
     thumbnailUrl: row.thumbnail_url ? String(row.thumbnail_url) : null,

@@ -22,10 +22,15 @@ export interface InstagramConnection {
   lastError: string | null;
 }
 
+export type InstagramMediaProductType = "REELS" | "FEED";
+export type InstagramMediaType = "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
+
 export interface InstagramMedia {
   id: string;
   connectionId: string;
   externalId: string;
+  mediaProductType: InstagramMediaProductType;
+  mediaType: InstagramMediaType;
   caption: string;
   permalink: string;
   thumbnailUrl: string | null;

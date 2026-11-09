@@ -27,7 +27,7 @@ export async function syncRecentAutomationComments(ownerId: string, connectionId
 
   const { data: mediaRows } = await supabase
     .from("instagram_media")
-    .select("external_id")
+    .select("external_id,media_product_type")
     .eq("connection_id", connection.id)
     .in("id", mediaIds);
   const accessToken = decryptSecret({
@@ -48,7 +48,7 @@ export async function syncRecentAutomationComments(ownerId: string, connectionId
         instagramUserId: connection.instagram_user_id,
         commentId: comment.commentId,
         mediaId: media.external_id,
-        mediaProductType: "REELS",
+        mediaProductType: media.media_product_type || "UNKNOWN",
         commenterScopedId: comment.commenterScopedId,
         commenterUsername: comment.commenterUsername,
         text: comment.text,

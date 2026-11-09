@@ -1,3 +1,5 @@
+import type { SyncedInstagramMedia } from "@/server/instagram/media-mapping";
+
 export interface InstagramCommentEvent {
   instagramUserId: string;
   commentId: string;
@@ -34,11 +36,11 @@ export interface InstagramGateway {
   listGrantedPermissions(accessToken: string): Promise<string[] | null>;
   subscribeToComments(userId: string, accessToken: string): Promise<void>;
   hasCommentSubscription(userId: string, accessToken: string): Promise<boolean>;
-  listReels(userId: string, accessToken: string): Promise<Array<{ externalId: string; caption: string; permalink: string; thumbnailUrl: string | null; publishedAt: string }>>;
+  listPublishedMedia(userId: string, accessToken: string): Promise<SyncedInstagramMedia[]>;
   createReelContainer(userId: string, videoUrl: string, caption: string, accessToken: string): Promise<{ id: string }>;
   getMediaContainerStatus(containerId: string, accessToken: string): Promise<{ statusCode: "EXPIRED" | "ERROR" | "FINISHED" | "IN_PROGRESS" | "PUBLISHED" | string }>;
   publishMedia(userId: string, creationId: string, accessToken: string): Promise<{ id: string }>;
-  getMedia(mediaId: string, accessToken: string): Promise<{ externalId: string; caption: string; permalink: string; thumbnailUrl: string | null; publishedAt: string }>;
+  getMedia(mediaId: string, accessToken: string): Promise<SyncedInstagramMedia>;
   listComments(mediaId: string, accessToken: string, since: Date, limit: number): Promise<Array<{ commentId: string; commenterScopedId: string; commenterUsername: string; text: string; publishedAt: string }>>;
   getMediaInsights(mediaId: string, accessToken: string): Promise<{ comments: number; views: number; reach: number; shares: number; saved: number; totalInteractions: number; raw: Record<string, number> }>;
   replyToComment(commentId: string, message: string, accessToken: string): Promise<{ id: string }>;

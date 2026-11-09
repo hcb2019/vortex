@@ -5,7 +5,7 @@
 <h1 align="center">Vortex</h1>
 
 <p align="center">
-  Automação oficial para comentários do Instagram e inteligência de audiência para Reels.
+  Automação oficial para comentários do Instagram e inteligência de audiência para Reels, carrosséis e posts do feed.
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 
 ## O que o Vortex faz
 
-- identifica palavras-chave e variações em comentários de Reels;
+- identifica palavras-chave e variações em comentários de Reels, carrosséis e posts do feed;
 - alterna respostas públicas para evitar aparência robótica;
 - envia a resposta privada permitida pela API, com link rastreável ou conversa multi-step com botões de URL;
 - pode liberar o conteúdo após confirmação de seguidor;

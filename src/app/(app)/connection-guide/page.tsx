@@ -106,7 +106,7 @@ function InstagramSetupMap() {
 
 function PermissionTable() {
   return <div className="setup-permission-table">
-    <div><code>instagram_business_basic</code><span>Conta profissional e Reels</span><b>Usada</b></div>
+    <div><code>instagram_business_basic</code><span>Conta profissional, Reels, carrosséis e posts</span><b>Usada</b></div>
     <div><code>instagram_business_manage_comments</code><span>Comentários, resposta pública e private reply</span><b>Usada</b></div>
     <div><code>instagram_business_manage_insights</code><span>Métricas usadas pelo Radar</span><b>Usada</b></div>
     <div><code>instagram_business_manage_messages</code><span>Compatibilidade do envio da mensagem privada</span><b>Usada</b></div>
@@ -280,14 +280,14 @@ export default async function ConnectionGuidePage() {
         <Expected>Para o primeiro teste, sua conta continua como testadora. Para produção, o painel da Meta não mostra requisitos pendentes.</Expected>
       </StepShell>
 
-      <StepShell id="connect-test" number="08" location="Vortex → Integração" title="Conecte a conta e faça um teste simples" intro="A partir daqui, o Vortex assume o trabalho técnico: OAuth, token, assinatura de comments e sincronização dos Reels.">
+      <StepShell id="connect-test" number="08" location="Vortex → Integração" title="Conecte a conta e faça um teste simples" intro="A partir daqui, o Vortex assume o trabalho técnico: OAuth, token, assinatura de comments e sincronização das publicações.">
         <div className="setup-action-row"><Link className="setup-action" href="/settings">Abrir Integração<ArrowRight size={15} /></Link><span>Use a conta profissional adicionada como testadora.</span></div>
         <TaskList>
           <li>Clique em <strong>Conectar Instagram</strong> e autorize as permissões solicitadas.</li>
-          <li>Ao voltar, confirme que o painel mostra a conta conectada e os Reels sincronizados.</li>
+          <li>Ao voltar, confirme que o painel mostra a conta conectada e as publicações sincronizadas (Reels, carrosséis e posts do feed).</li>
           <li>Para um segundo perfil Business ou Creator, abra Integração e use <strong>Conectar outra conta</strong>. Reautorizar um @handle não apaga o outro.</li>
-          <li>Crie uma automação com uma palavra fácil de testar, por exemplo <strong>GUIA2026</strong>.</li>
-          <li>Com uma segunda conta, comente exatamente essa palavra em um Reel.</li>
+          <li>Crie uma automação com uma palavra fácil de testar, por exemplo <strong>GUIA2026</strong>, em um Reel e depois em um carrossel.</li>
+          <li>Com uma segunda conta, comente exatamente essa palavra na publicação escolhida.</li>
           <li>Confira a resposta pública, a solicitação no Direct e o registro no Histórico.</li>
         </TaskList>
         <div className="setup-test-line" aria-label="Fluxo do teste">

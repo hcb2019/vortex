@@ -11,7 +11,7 @@ function ConnectionActions({ connectionId, isDemo }: { connectionId: string; isD
   return <div className="connection-actions">
     <form action="/api/meta/media/sync" method="post">
       <input type="hidden" name="connectionId" value={connectionId} />
-      <Button variant="secondary" disabled={isDemo}><RefreshCw size={15} /> {isDemo ? "Simulação ativa" : "Sincronizar Reels"}</Button>
+      <Button variant="secondary" disabled={isDemo}><RefreshCw size={15} /> {isDemo ? "Simulação ativa" : "Sincronizar publicações"}</Button>
     </form>
     {!isDemo && <form action="/api/meta/comments/sync" method="post">
       <input type="hidden" name="connectionId" value={connectionId} />
@@ -69,7 +69,7 @@ export function InstagramAccountsPanel({
         </div>
         <div className="connection-stats">
           <div><Clock3 size={16} /><span>Última sincronização<strong>{formatDate(connection.lastSyncAt)}</strong></span></div>
-          <div><CheckCircle2 size={16} /><span>Reels disponíveis<strong>{mediaCount(connection.id)}</strong></span></div>
+          <div><CheckCircle2 size={16} /><span>Publicações disponíveis<strong>{mediaCount(connection.id)}</strong></span></div>
           <div><ShieldCheck size={16} /><span>Token válido até<strong>{formatDate(connection.tokenExpiresAt)}</strong></span></div>
         </div>
         {isSelected

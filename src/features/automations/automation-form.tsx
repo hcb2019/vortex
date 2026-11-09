@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { Check, ExternalLink, Film, Lightbulb, LoaderCircle, MessageCircle, Plus, RefreshCw, Search, Send, Sparkles, Trash2, UserCheck } from "lucide-react";
+import { Check, ExternalLink, Film, Image as ImageIcon, Images, Lightbulb, LoaderCircle, MessageCircle, Plus, RefreshCw, Search, Send, Sparkles, Trash2, UserCheck } from "lucide-react";
+import { instagramMediaCaption, instagramMediaKindLabel } from "@/lib/instagram-media";
 import {
   saveAutomation,
   suggestAutomationMessages,
@@ -25,7 +26,12 @@ function shouldAutoSyncMedia(lastMediaSyncAt: string | null | undefined) {
   return Date.now() - new Date(lastMediaSyncAt).getTime() >= AUTO_SYNC_STALE_MS;
 }
 
-export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReels = true, connectionId }: { automation?: Automation; media: InstagramMedia[]; lastMediaSyncAt?: string | null; canSyncReels?: boolean; connectionId?: string }) {
+function MediaCoverFallback({ media }: { media: InstagramMedia }) {
+  const Icon = media.mediaType === "CAROUSEL_ALBUM" ? Images : media.mediaType === "IMAGE" ? ImageIcon : Film;
+  return <span className="reel-cover-fallback"><Icon size={28} /><small>Sem capa</small></span>;
+}
+
+export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncMedia = true, connectionId }: { automation?: Automation; media: InstagramMedia[]; lastMediaSyncAt?: string | null; canSyncMedia?: boolean; connectionId?: string }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<AutomationActionState, FormData>(saveAutomation, {});
   const [suggestionPending, startSuggestionTransition] = useTransition();
@@ -75,9 +81,9 @@ export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReel
   const firstFlowStep = flowSteps[0];
   const previewFinalStep = flowSteps.find((step) => step.buttons.some((button) => button.url));
 
-  async function syncReels(source: "manual" | "auto") {
-    if (!canSyncReels) {
-      setSyncError("Conecte o Instagram antes de atualizar os Reels.");
+  async function syncMedia(source: "manual" | "auto") {
+    if (!canSyncMedia) {
+      setSyncError("Conecte o Instagram antes de atualizar as publicações.");
       return;
     }
     setSyncPending(true);
@@ -88,29 +94,29 @@ export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReel
       if (connectionId) body.set("connectionId", connectionId);
       const response = await fetch("/api/meta/media/sync", { method: "POST", headers: { Accept: "application/json" }, body });
       const result = await response.json() as { synced?: number; skipped?: boolean; message?: string; error?: string };
-      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar os Reels.");
-      setSyncMessage(result.message ?? (result.skipped ? "Os Reels já estavam atualizados." : "Reels atualizados."));
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar as publicações.");
+      setSyncMessage(result.message ?? (result.skipped ? "As publicações já estavam atualizadas." : "Publicações atualizadas."));
       router.refresh();
     } catch (error) {
-      setSyncError(error instanceof Error ? error.message : "Não foi possível atualizar os Reels.");
+      setSyncError(error instanceof Error ? error.message : "Não foi possível atualizar as publicações.");
     } finally {
       setSyncPending(false);
     }
   }
 
   useEffect(() => {
-    if (!canSyncReels) return;
+    if (!canSyncMedia) return;
     if (!shouldAutoSyncMedia(lastMediaSyncAt)) return;
     const storageKey = "vortex:auto-sync-reels:last-attempt";
     const lastAttempt = Number(sessionStorage.getItem(storageKey) ?? 0);
     if (Date.now() - lastAttempt < AUTO_SYNC_STALE_MS) return;
     sessionStorage.setItem(storageKey, String(Date.now()));
     const syncTimer = window.setTimeout(() => {
-      void syncReels("auto");
+      void syncMedia("auto");
     }, 0);
     return () => window.clearTimeout(syncTimer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canSyncReels, lastMediaSyncAt]);
+  }, [canSyncMedia, lastMediaSyncAt]);
 
   function selectMedia(id: string) {
     setSelectedMediaId(id);
@@ -207,38 +213,40 @@ export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReel
     <section className="form-stack">
       {state.error && <div className="form-alert" role="alert">{state.error}</div>}
       <Card className="form-section"><div className="section-kicker">01 · Identidade</div><h2>O que esta automação faz?</h2>
-        <label><span>Nome interno</span><input name="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Reel — Guia de lançamento" maxLength={80} aria-invalid={Boolean(state.fields?.name) && !name.trim()} /><FieldError messages={state.fields?.name} /></label>
+        <label><span>Nome interno</span><input name="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Carrossel — Guia de lançamento" maxLength={80} aria-invalid={Boolean(state.fields?.name) && !name.trim()} /><FieldError messages={state.fields?.name} /></label>
         <fieldset className={`reel-picker${state.fields?.mediaId ? " field-invalid" : ""}`} aria-invalid={Boolean(state.fields?.mediaId)}>
-          <legend>Reel vinculado</legend>
+          <legend>Publicação vinculada</legend>
           <div className="reel-picker-toolbar">
-            <div className="reel-search"><Search size={15} aria-hidden="true" /><input value={reelQuery} onChange={(event) => setReelQuery(event.target.value)} placeholder="Buscar pela legenda…" aria-label="Buscar Reel pela legenda" /></div>
-            <button type="button" className="reel-sync-button" onClick={() => syncReels("manual")} disabled={syncPending || !canSyncReels}>
+            <div className="reel-search"><Search size={15} aria-hidden="true" /><input value={reelQuery} onChange={(event) => setReelQuery(event.target.value)} placeholder="Buscar pela legenda…" aria-label="Buscar publicação pela legenda" /></div>
+            <button type="button" className="reel-sync-button" onClick={() => syncMedia("manual")} disabled={syncPending || !canSyncMedia}>
               {syncPending ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />}
-              {syncPending ? "Atualizando…" : "Atualizar reels"}
+              {syncPending ? "Atualizando…" : "Atualizar publicações"}
             </button>
-            <span>{visibleMedia.length} de {media.length} Reels</span>
+            <span>{visibleMedia.length} de {media.length} publicações</span>
           </div>
           {syncError && <p className="suggestion-error" role="alert">{syncError}</p>}
           {syncMessage && !syncError && <p className="form-success reel-sync-status" role="status">{syncMessage}</p>}
-          <div className="reel-grid" role="radiogroup" aria-label="Escolha o Reel da automação">
+          <div className="reel-grid" role="radiogroup" aria-label="Escolha a publicação da automação">
             {visibleMedia.map((item) => {
               const selected = selectedMediaId === item.id;
-              return <label className={`reel-option${selected ? " selected" : ""}`} key={item.id}>
+              const kindLabel = instagramMediaKindLabel(item);
+              return <label className={`reel-option${selected ? " selected" : ""}`} key={item.id} aria-label={`${kindLabel}: ${instagramMediaCaption(item)}`}>
                 <input type="radio" name="mediaId" value={item.id} checked={selected} onChange={() => selectMedia(item.id)} />
                 <span className="reel-cover">
                   {item.thumbnailUrl
                     ? <Image src={item.thumbnailUrl} alt="" fill sizes="(max-width: 470px) 42vw, (max-width: 760px) 28vw, 180px" unoptimized />
-                    : <span className="reel-cover-fallback"><Film size={28} /><small>Sem capa</small></span>}
+                    : <MediaCoverFallback media={item} />}
+                  <span className="reel-type-badge">{kindLabel}</span>
                   <span className="reel-selected-mark"><Check size={14} /></span>
                 </span>
                 <span className="reel-option-copy">
-                  <strong>{item.caption || "Reel sem legenda"}</strong>
+                  <strong>{instagramMediaCaption(item)}</strong>
                   <small>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Sao_Paulo" }).format(new Date(item.publishedAt))}</small>
                 </span>
               </label>;
             })}
           </div>
-          {!visibleMedia.length && <div className="reel-empty"><Film size={22} /><span>Nenhum Reel encontrado para essa busca.</span></div>}
+          {!visibleMedia.length && <div className="reel-empty"><Film size={22} /><span>Nenhuma publicação encontrada para essa busca.</span></div>}
           <FieldError messages={state.fields?.mediaId} />
         </fieldset>
       </Card>
@@ -246,7 +254,7 @@ export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReel
         <label><span>Palavra-chave</span><input name="keyword" value={keyword} onChange={(event) => updateKeyword(event.target.value)} placeholder="1991" maxLength={80} aria-invalid={Boolean(state.fields?.keyword) && !keyword.trim()} /><small>Aceitamos maiúsculas, espaços extras, pontuação final, plural e erros simples com uma letra ausente.</small><FieldError messages={state.fields?.keyword} /></label>
         {keyword.trim() && <div className="keyword-variants">
           <div className="keyword-variants-head">
-            <div><strong>Variações aceitas automaticamente</strong><small>Você pode remover uma opção que não faça sentido para este Reel.</small></div>
+            <div><strong>Variações aceitas automaticamente</strong><small>Você pode remover uma opção que não faça sentido para esta publicação.</small></div>
             <button type="button" onClick={() => setKeywordVariants(buildKeywordVariants(keyword))}>Restaurar sugestões</button>
           </div>
           <div className="keyword-variant-list">
@@ -265,7 +273,7 @@ export function AutomationForm({ automation, media, lastMediaSyncAt, canSyncReel
             <span className="suggestion-icon"><Lightbulb size={18} /></span>
             <div>
               <strong>Sugestões para este conteúdo</strong>
-              <p>{selectedMedia ? "Usamos apenas o contexto do Reel. As sugestões não copiam a legenda, o título nem @usuários." : "Escolha um Reel para gerar respostas naturais e prontas para revisar."}</p>
+              <p>{selectedMedia ? "Usamos apenas o contexto desta publicação. As sugestões não copiam a legenda, o título nem @usuários." : "Escolha uma publicação para gerar respostas naturais e prontas para revisar."}</p>
             </div>
             <button type="button" className="button button-secondary" onClick={generateSuggestions} disabled={!selectedMediaId || suggestionPending}>
               {suggestionPending ? <LoaderCircle className="spin" size={15} /> : <Sparkles size={15} />}
