@@ -3,6 +3,7 @@ import { ArrowRight, Check, ChevronRight, CircleHelp, Eye, Flame, Lightbulb, Mes
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { categoryLabel, confidenceLabel } from "@/lib/audience";
 import { formatDate } from "@/lib/domain";
+import { instagramMediaCaption, instagramMediaKindLabel } from "@/lib/instagram-media";
 import { requestAudienceAnalysis, updateInsight } from "@/features/audience/actions";
 import { SyncAudienceButton } from "@/features/audience/sync-button";
 import { getAudienceMedia, getAudienceRadarData } from "@/server/audience/data";
@@ -70,11 +71,11 @@ export default async function RadarPage({ searchParams }: { searchParams: Promis
       <div className="radar-header-actions"><SyncAudienceButton /><form action={requestAudienceAnalysis}><input type="hidden" name="period" value={period} /><input type="hidden" name="mediaId" value={mediaId ?? ""} /><button className="button button-primary" type="submit"><Sparkles size={15} /> Analisar agora</button></form></div>
     </header>
 
-    {notice && <div className={`radar-notice ${notice === "ready" || notice === "queued" ? "success" : "neutral"}`} role="status">{notice === "ready" ? "Análise atualizada com dados simulados." : notice === "queued" ? "Análise enfileirada. Os resultados aparecerão em instantes." : notice === "duplicate" ? "Esses dados já foram analisados." : notice === "daily_limit" ? "Limite diário de análises atingido." : notice === "no_comments" ? "Não há comentários novos nesse recorte." : notice === "invalid_media" ? "O Reel selecionado não está disponível." : "Não foi possível iniciar a análise."}</div>}
+    {notice && <div className={`radar-notice ${notice === "ready" || notice === "queued" ? "success" : "neutral"}`} role="status">{notice === "ready" ? "Análise atualizada com dados simulados." : notice === "queued" ? "Análise enfileirada. Os resultados aparecerão em instantes." : notice === "duplicate" ? "Esses dados já foram analisados." : notice === "daily_limit" ? "Limite diário de análises atingido." : notice === "no_comments" ? "Não há comentários novos nesse recorte." : notice === "invalid_media" ? "A publicação selecionada não está disponível." : "Não foi possível iniciar a análise."}</div>}
 
     <Card className="radar-control-bar">
       <div className="period-tabs" aria-label="Período">{[7, 30, 90].map((days) => <Link className={period === days ? "active" : ""} href={filterHref(days)} key={days}>{days} dias</Link>)}</div>
-      <form className="reel-filter" method="get"><input type="hidden" name="period" value={period} /><label htmlFor="media">Reel</label><select id="media" name="media" defaultValue={mediaId ?? ""}><option value="">Todos os Reels</option>{media.map((item) => <option value={item.id} key={item.id}>{item.caption || "Reel sem legenda"}</option>)}</select><button type="submit">Aplicar</button></form>
+      <form className="reel-filter" method="get"><input type="hidden" name="period" value={period} /><label htmlFor="media">Publicação</label><select id="media" name="media" defaultValue={mediaId ?? ""}><option value="">Todas as publicações</option>{media.map((item) => <option value={item.id} key={item.id}>{instagramMediaKindLabel(item)} · {instagramMediaCaption(item)}</option>)}</select><button type="submit">Aplicar</button></form>
       <div className="radar-freshness"><span className="pulse" /><span>Atualizado {formatDate(data.metrics.lastUpdatedAt)}</span></div>
     </Card>
 

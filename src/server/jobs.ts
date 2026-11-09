@@ -2,11 +2,10 @@ import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { env, isDemoMode } from "@/lib/env";
 import {
-  buildKeywordVariants,
-  keywordMatches,
   normalizeKeyword,
   selectReplyVariant,
 } from "@/lib/domain";
+import { matchAutomationForComment } from "@/lib/automation-matching";
 import { createTrackingToken, decryptSecret } from "@/server/crypto";
 import { instagramGateway } from "@/server/instagram";
 import { MetaApiError } from "@/server/instagram/meta-gateway";
@@ -241,19 +240,12 @@ async function processEvent(eventId: string) {
     return;
   }
   const { data: candidates } = await supabase.from("automations").select("*").eq("media_id", media.id).eq("status", "active").is("deleted_at", null);
-  const automation = (candidates ?? []).find((item) =>
-    keywordMatches(
-      event.comment_text,
-      item.keyword,
-      Array.isArray(item.keyword_variants) && item.keyword_variants.length
-        ? item.keyword_variants
-        : buildKeywordVariants(item.keyword),
-    ),
-  );
-  if (!automation) {
+  const matched = matchAutomationForComment(media, candidates ?? [], event.comment_text);
+  if (matched.outcome !== "matched") {
     await supabase.from("comment_events").update({ outcome: "not_matched", processed_at: new Date().toISOString() }).eq("id", eventId);
     return;
   }
+  const automation = matched.automation;
   const { token, hash } = createTrackingToken();
   const publicReply = selectReplyVariant(
     event.comment_id,

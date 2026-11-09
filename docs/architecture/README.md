@@ -28,6 +28,14 @@
 
 O desenho de anonimização, Structured Outputs, evidências, limites de custo e aprovação humana está detalhado em [006-audience-intelligence.md](006-audience-intelligence.md).
 
+## ADR-007 — Automações em Reels e posts do feed
+
+**Decisão:** `instagram_media` guarda `media_product_type` (`REELS` ou `FEED`) e `media_type` (`VIDEO`, `IMAGE` ou `CAROUSEL_ALBUM`). A sincronização importa Reels, carrosséis e posts únicos do feed; stories e anúncios continuam de fora.
+
+**Motivo:** o comentário → DM da Meta funciona no `media_id` da publicação, não só em Reels. O matching das automações continua por `external_id` + palavra-chave, sem ramificação por tipo.
+
+**Trade-off:** a capa de carrossel usa `thumbnail_url` ou o primeiro filho (`children`). URLs da Meta expiram; a grade volta ao fallback visual se a capa falhar.
+
 ## Estúdio de conteúdo
 
 Voz, storytelling, entregáveis por tipo e o limite da Instagram API para ideias automáticas estão em [content-studio.md](../content-studio.md).

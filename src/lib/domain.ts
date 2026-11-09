@@ -166,7 +166,7 @@ export const automationSchema = z
     if (data.intent === "draft") return;
     const required: Array<[keyof typeof data, string]> = [
       ["name", "Informe um nome."],
-      ["mediaId", "Selecione um Reel."],
+      ["mediaId", "Selecione uma publicação."],
       ["keyword", "Informe uma palavra-chave."],
     ];
     for (const [field, message] of required) {

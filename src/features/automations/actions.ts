@@ -22,7 +22,7 @@ export type AutomationSuggestionsResult =
 
 export async function suggestAutomationMessages(mediaId: string, variationSeed = 0): Promise<AutomationSuggestionsResult> {
   const owner = await requireOwner();
-  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) return { error: "Escolha um Reel antes de gerar sugestões." };
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) return { error: "Escolha uma publicação antes de gerar sugestões." };
 
   let caption: string | null = null;
   if (isDemoMode) {
@@ -37,7 +37,7 @@ export async function suggestAutomationMessages(mediaId: string, variationSeed =
       .maybeSingle();
     caption = data?.caption ?? null;
   }
-  if (caption === null) return { error: "Este Reel não foi encontrado na sua conta." };
+  if (caption === null) return { error: "Esta publicação não foi encontrada na sua conta." };
 
   return {
     suggestions: await generateAutomationMessageSuggestions(caption, variationSeed),
@@ -87,7 +87,7 @@ export async function saveAutomation(_state: AutomationActionState, formData: Fo
         keywordMatches(term, item.keyword, item.keywordVariants.length ? item.keywordVariants : buildKeywordVariants(item.keyword)),
       ),
     );
-    if (duplicate) return { error: "Já existe uma automação com essa palavra-chave neste Reel." };
+    if (duplicate) return { error: "Já existe uma automação com essa palavra-chave nesta publicação." };
     const saved = saveDemoAutomation({ ...input, status: input.intent });
     revalidatePath("/dashboard", "layout");
     redirect(`/automations/${saved.id}?saved=1`);
@@ -98,7 +98,7 @@ export async function saveAutomation(_state: AutomationActionState, formData: Fo
   if (!connection) return { error: "Conecte uma conta do Instagram antes de salvar." };
   if (input.intent === "active" && connection.status !== "connected") return { error: "A conexão precisa estar ativa para publicar a automação." };
   const { data: mediaRow } = await supabase.from("instagram_media").select("id").eq("id", input.mediaId).eq("connection_id", connection.id).maybeSingle();
-  if (input.mediaId && !mediaRow) return { error: "Este Reel não pertence à conta selecionada." };
+  if (input.mediaId && !mediaRow) return { error: "Esta publicação não pertence à conta selecionada." };
   const { data: existingAutomations } = await supabase
     .from("automations")
     .select("id,keyword,keyword_variants")
@@ -117,7 +117,7 @@ export async function saveAutomation(_state: AutomationActionState, formData: Fo
       ),
     ),
   );
-  if (duplicate) return { error: "Uma palavra-chave ou variação já é usada por outra automação neste Reel." };
+  if (duplicate) return { error: "Uma palavra-chave ou variação já é usada por outra automação nesta publicação." };
 
   const payload = {
     owner_id: owner.id,
@@ -142,7 +142,7 @@ export async function saveAutomation(_state: AutomationActionState, formData: Fo
   const result = input.id
     ? await supabase.from("automations").update(payload).eq("id", input.id).eq("owner_id", owner.id).select("id").single()
     : await supabase.from("automations").insert(payload).select("id").single();
-  if (result.error) return { error: result.error.code === "23505" ? "Já existe uma automação com essa palavra-chave neste Reel." : "Não foi possível salvar a automação." };
+  if (result.error) return { error: result.error.code === "23505" ? "Já existe uma automação com essa palavra-chave nesta publicação." : "Não foi possível salvar a automação." };
   revalidatePath("/dashboard", "layout");
   redirect(`/automations/${result.data.id}?saved=1`);
 }

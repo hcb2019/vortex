@@ -8,7 +8,7 @@ Mensagens permanecem na fila por 60 segundos quando um worker falha. Runs têm c
 
 ## Radar e IA
 
-Configure um job diário para fazer POST em `/api/internal/jobs/analyze` com o mesmo Bearer secret. Ele sincroniza até 20 Reels/2.000 comentários, captura métricas disponíveis, enfileira somente fingerprints inéditos e consome duas mensagens por chamada. O limite padrão é de duas análises completas por dia.
+Configure um job diário para fazer POST em `/api/internal/jobs/analyze` com o mesmo Bearer secret. Ele sincroniza até 20 publicações/2.000 comentários, captura métricas disponíveis, enfileira somente fingerprints inéditos e consome duas mensagens por chamada. O limite padrão é de duas análises completas por dia.
 
 - `OPENAI_API_KEY` ausente: sincronização manual e modo mock continuam funcionando; nenhum job de IA é criado.
 - `ANALYSIS_FAILED`: verifique os logs protegidos, disponibilidade da OpenAI e schema de resposta. A interface recebe apenas um erro sanitizado.

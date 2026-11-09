@@ -36,6 +36,11 @@ describe("automation validation", () => {
   it("exige todos os campos e HTTPS na ativação", () => {
     const invalid = automationSchema.safeParse({ name: "A", mediaId: "id", keyword: "x", publicReply: "ok", publicReplyVariants: ["a", "b", "c"], dmMessage: "ok", dmMessageVariants: ["ok"], destinationUrl: "http://example.com", intent: "active" });
     expect(invalid.success).toBe(false);
+    const missingMedia = automationSchema.safeParse({ name: "A", mediaId: "", keyword: "x", publicReply: "a", publicReplyVariants: ["a", "b", "c"], dmMessage: "ok", dmMessageVariants: ["ok"], destinationUrl: "https://example.com", intent: "active" });
+    expect(missingMedia.success).toBe(false);
+    if (!missingMedia.success) {
+      expect(missingMedia.error.issues.some((issue) => issue.message === "Selecione uma publicação.")).toBe(true);
+    }
     const valid = automationSchema.safeParse({ name: "A", mediaId: "id", keyword: "x", publicReply: "a", publicReplyVariants: ["a", "b", "c"], dmMessage: "ok", dmMessageVariants: ["ok", "aqui está"], destinationUrl: "https://example.com", intent: "active" });
     expect(valid.success).toBe(true);
   });

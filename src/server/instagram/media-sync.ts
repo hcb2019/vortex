@@ -28,7 +28,7 @@ export async function syncInstagramMediaForOwner(ownerId: string, minimumInterva
   if (!connection) throw new MediaSyncError("Não foi possível ler a conexão.", "CONNECTION_UNAVAILABLE");
 
   if (!isMediaSyncStale(connection.last_sync_at, minimumIntervalMs)) {
-    return { synced: 0, skipped: true, message: "Os Reels já foram atualizados há poucos minutos." };
+    return { synced: 0, skipped: true, message: "As publicações já foram atualizadas há poucos minutos." };
   }
 
   try {
@@ -37,21 +37,22 @@ export async function syncInstagramMediaForOwner(ownerId: string, minimumInterva
       iv: connection.token_iv,
       tag: connection.token_tag,
     });
-    const reels = await instagramGateway().listReels(connection.instagram_user_id, accessToken);
+    const media = await instagramGateway().listPublishedMedia(connection.instagram_user_id, accessToken);
     const syncedAt = new Date().toISOString();
-    if (reels.length) {
-      const { error: mediaError } = await supabase.from("instagram_media").upsert(reels.map((item) => ({
+    if (media.length) {
+      const { error: mediaError } = await supabase.from("instagram_media").upsert(media.map((item) => ({
         owner_id: ownerId,
         connection_id: connection.id,
         external_id: item.externalId,
-        media_product_type: "REELS",
+        media_product_type: item.mediaProductType,
+        media_type: item.mediaType,
         caption: item.caption,
         permalink: item.permalink,
         thumbnail_url: item.thumbnailUrl,
         published_at: item.publishedAt,
         synced_at: syncedAt,
       })), { onConflict: "connection_id,external_id" });
-      if (mediaError) throw new Error("O banco de dados recusou a gravação dos Reels.");
+      if (mediaError) throw new Error("O banco de dados recusou a gravação das publicações.");
     }
     const { error: updateError } = await supabase.from("instagram_connections").update({
       status: "connected",
@@ -60,7 +61,7 @@ export async function syncInstagramMediaForOwner(ownerId: string, minimumInterva
       last_error: null,
     }).eq("id", connection.id);
     if (updateError) throw new Error("Não foi possível atualizar o estado da conexão.");
-    return { synced: reels.length, skipped: false, message: "Reels atualizados." };
+    return { synced: media.length, skipped: false, message: "Publicações atualizadas." };
   } catch (error) {
     const unsupportedMedia = error instanceof MetaApiError
       && error.code === "2500"
@@ -76,6 +77,6 @@ export async function syncInstagramMediaForOwner(ownerId: string, minimumInterva
       status: "error",
       last_error: diagnostic.slice(0, 400),
     }).eq("id", connection.id);
-    throw new MediaSyncError("Não foi possível sincronizar os Reels.", error instanceof MetaApiError ? error.code ?? "META_ERROR" : "SYNC_ERROR");
+    throw new MediaSyncError("Não foi possível sincronizar as publicações.", error instanceof MetaApiError ? error.code ?? "META_ERROR" : "SYNC_ERROR");
   }
 }

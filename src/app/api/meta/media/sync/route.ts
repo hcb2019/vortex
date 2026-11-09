@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (request.headers.get("accept")?.includes("text/html")) return settingsRedirect("error");
     return Response.json({
-      error: error instanceof MediaSyncError ? error.message : "Não foi possível sincronizar os Reels.",
+      error: error instanceof MediaSyncError ? error.message : "Não foi possível sincronizar as publicações.",
       code: error instanceof MediaSyncError ? error.code : "SYNC_ERROR",
     }, { status: 502 });
   }

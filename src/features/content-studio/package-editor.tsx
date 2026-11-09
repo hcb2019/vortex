@@ -77,8 +77,8 @@ export function PackageEditor({ project, publicUrl, media }: { project: ContentP
       </div>
     </section>
     <section className="card studio-media-link">
-      <div><p className="eyebrow">Publicação</p><h2>Vincule quando o Reel entrar no ar</h2><p>O Estúdio pode preparar tudo antes. Depois da publicação, sincronize os Reels e selecione o conteúdo correto aqui.</p></div>
-      <div><select name="mediaId" defaultValue={project.mediaId ?? ""} aria-label="Reel publicado"><option value="">Escolha um Reel sincronizado</option>{media.map((item) => <option value={item.id} key={item.id}>{item.caption.slice(0, 90) || "Reel sem legenda"}</option>)}</select><button className="button button-secondary" formAction={linkProjectMedia} disabled={!media.length}>Vincular Reel</button></div>
+      <div><p className="eyebrow">Publicação</p><h2>Vincule quando o conteúdo entrar no ar</h2><p>O Estúdio pode preparar tudo antes. Depois da publicação, sincronize as publicações e selecione o Reel, carrossel ou post correto aqui.</p></div>
+      <div><select name="mediaId" defaultValue={project.mediaId ?? ""} aria-label="Publicação sincronizada"><option value="">Escolha uma publicação sincronizada</option>{media.map((item) => <option value={item.id} key={item.id}>{item.caption.slice(0, 90) || "Publicação sem legenda"}</option>)}</select><button className="button button-secondary" formAction={linkProjectMedia} disabled={!media.length}>Vincular publicação</button></div>
     </section>
     <footer className="studio-package-actions">
       <input type="hidden" name="conceptIndex" value={String(project.selectedConceptIndex ?? 0)} />

@@ -52,8 +52,8 @@ O administrador cria `META_WEBHOOK_VERIFY_TOKEN`, salva o mesmo valor na Vercel 
 2. Salve as variáveis na Vercel e faça um novo deploy.
 3. Configure o webhook e as URLs do login.
 4. Conecte a conta pelo Vortex. Para um segundo perfil, use **Conectar outra conta** em Integração — o painel passa a operar na conta selecionada, e os webhooks continuam a chegar por `instagram_user_id`.
-5. Crie uma automação de teste.
-6. Comente em um Reel usando uma segunda conta.
-7. Confira a resposta pública, a private reply e o Histórico.
+5. Crie uma automação de teste em um Reel **e** em um carrossel (sincronize as publicações em Integração ou em Nova automação).
+6. Comente a palavra-chave usando uma segunda conta, primeiro no Reel e depois no carrossel.
+7. Confira a resposta pública, a private reply e o Histórico nos dois tipos.
 
 Para liberar contas que não são testadoras, siga o bloco 5 da Meta, conclua a análise do aplicativo e solicite o nível de acesso exigido para as permissões usadas.

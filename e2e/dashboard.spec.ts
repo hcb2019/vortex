@@ -156,12 +156,13 @@ test("keeps automation fields readable without iOS input zoom", async ({ page })
 test("selects a Reel from the visual gallery", async ({ page }) => {
   await page.goto("/automations/new");
   const options = page.locator(".reel-option");
-  await expect(options).toHaveCount(3);
+  await expect(options).toHaveCount(4);
+  await expect(page.getByText("Carrossel", { exact: true }).first()).toBeVisible();
   await options.nth(1).click();
   await expect(options.nth(1).getByRole("radio")).toBeChecked();
-  await page.getByRole("textbox", { name: "Buscar Reel pela legenda" }).fill("Checklist");
+  await page.getByRole("textbox", { name: "Buscar publicação pela legenda" }).fill("Checklist");
   await expect(page.locator(".reel-option")).toHaveCount(1);
-  await expect(page.getByText("1 de 3 Reels")).toBeVisible();
+  await expect(page.getByText("1 de 4 publicações")).toBeVisible();
 });
 
 test("explores Radar evidence and opens a connected Studio project", async ({ page }) => {

@@ -2,6 +2,12 @@ import "server-only";
 import { env } from "@/lib/env";
 import type { InstagramGateway, InstagramTokenResult } from "@/server/instagram/types";
 import { normalizeMetaPagingPath } from "@/server/instagram/pagination";
+import {
+  INSTAGRAM_PUBLISHED_MEDIA_FIELDS,
+  mapPublishedInstagramMedia,
+  mapPublishedInstagramMediaList,
+  type InstagramGraphMediaItem,
+} from "@/server/instagram/media-mapping";
 
 export class MetaApiError extends Error {
   constructor(
@@ -146,15 +152,6 @@ async function inspectCommentAccess(mediaId: string, accessToken: string) {
   return { grantedPermissions, commentsCount };
 }
 
-type MetaMediaItem = {
-  id: string;
-  caption?: string;
-  media_product_type?: string;
-  permalink: string;
-  thumbnail_url?: string;
-  timestamp: string;
-};
-
 type MetaQuickReply = {
   content_type: "text";
   title: string;
@@ -173,39 +170,22 @@ function buildQuickReplies(quickReplies?: Array<{ title: string; payload: string
   return replies?.length ? replies : undefined;
 }
 
-function mapReels(data: MetaMediaItem[]) {
-  return data
-    .filter((item) => item.media_product_type === "REELS")
-    .map((item) => ({
-      externalId: item.id,
-      caption: item.caption ?? "Reel sem legenda",
-      permalink: item.permalink,
-      thumbnailUrl: item.thumbnail_url ?? null,
-      publishedAt: item.timestamp,
-    }));
+function requireMappedMedia(item: InstagramGraphMediaItem) {
+  const mapped = mapPublishedInstagramMedia(item);
+  if (!mapped) throw new MetaApiError("A Meta devolveu uma publicação que o Vortex ainda não sincroniza.", 502, "UNSUPPORTED_MEDIA");
+  return mapped;
 }
 
-function mapMedia(item: MetaMediaItem) {
-  return {
-    externalId: item.id,
-    caption: item.caption ?? "Reel sem legenda",
-    permalink: item.permalink,
-    thumbnailUrl: item.thumbnail_url ?? null,
-    publishedAt: item.timestamp,
-  };
-}
-
-async function listReelsFromExpandedProfile(accessToken: string) {
-  const mediaFields = "id,caption,media_product_type,media_type,permalink,thumbnail_url,timestamp";
-  const fields = encodeURIComponent(`media.limit(50){${mediaFields}}`);
-  let data: { media?: { data?: MetaMediaItem[] } };
+async function listPublishedMediaFromExpandedProfile(accessToken: string) {
+  const fields = encodeURIComponent(`media.limit(50){${INSTAGRAM_PUBLISHED_MEDIA_FIELDS}}`);
+  let data: { media?: { data?: InstagramGraphMediaItem[] } };
   try {
     data = await metaFetch(`/me?fields=${fields}`, { accessToken });
   } catch (error) {
     if (!isUnsupportedMediaEdge(error)) throw error;
     data = await metaFetch(`/me?fields=${fields}`, { accessToken, unversioned: true });
   }
-  return mapReels(data.media?.data ?? []);
+  return mapPublishedInstagramMediaList(data.media?.data ?? []);
 }
 
 export class MetaInstagramGateway implements InstagramGateway {
@@ -291,15 +271,15 @@ export class MetaInstagramGateway implements InstagramGateway {
     );
   }
 
-  async listReels(_userId: string, accessToken: string) {
-    const items: Array<{ externalId: string; caption: string; permalink: string; thumbnailUrl: string | null; publishedAt: string }> = [];
+  async listPublishedMedia(_userId: string, accessToken: string) {
+    const items: ReturnType<typeof mapPublishedInstagramMediaList> = [];
     // Instagram Login resolves the authenticated professional account through
     // "me". An explicit account ID on graph.instagram.com can be interpreted as
     // an object without the media edge and returns Meta error 2500.
-    let path: string | null = "/me/media?fields=id,caption,media_product_type,media_type,permalink,thumbnail_url,timestamp&limit=50";
+    let path: string | null = `/me/media?fields=${encodeURIComponent(INSTAGRAM_PUBLISHED_MEDIA_FIELDS)}&limit=50`;
     let unversioned = false;
     while (path && items.length < 250) {
-      let data: { data: MetaMediaItem[]; paging?: { next?: string } };
+      let data: { data: InstagramGraphMediaItem[]; paging?: { next?: string } };
       try {
         data = await metaFetch(path, { accessToken, unversioned });
       } catch (error) {
@@ -309,10 +289,10 @@ export class MetaInstagramGateway implements InstagramGateway {
           data = await metaFetch(path, { accessToken, unversioned: true });
         } catch (fallbackError) {
           if (!isUnsupportedMediaEdge(fallbackError)) throw fallbackError;
-          return listReelsFromExpandedProfile(accessToken);
+          return listPublishedMediaFromExpandedProfile(accessToken);
         }
       }
-      items.push(...mapReels(data.data));
+      items.push(...mapPublishedInstagramMediaList(data.data));
       path = data.paging?.next ? normalizeMetaPagingPath(data.paging.next, env.META_GRAPH_API_VERSION) : null;
     }
     return items;
@@ -347,11 +327,11 @@ export class MetaInstagramGateway implements InstagramGateway {
   }
 
   async getMedia(mediaId: string, accessToken: string) {
-    const data = await metaFetch<MetaMediaItem>(
-      `/${encodeURIComponent(mediaId)}?fields=id,caption,media_product_type,media_type,permalink,thumbnail_url,timestamp`,
+    const data = await metaFetch<InstagramGraphMediaItem>(
+      `/${encodeURIComponent(mediaId)}?fields=${encodeURIComponent(INSTAGRAM_PUBLISHED_MEDIA_FIELDS)}`,
       { accessToken },
     );
-    return mapMedia(data);
+    return requireMappedMedia(data);
   }
 
   async listComments(mediaId: string, accessToken: string, since: Date, limit: number) {
@@ -391,7 +371,7 @@ export class MetaInstagramGateway implements InstagramGateway {
         }
         if (access.commentsCount !== null && access.commentsCount > 0) {
           throw new MetaApiError(
-            `A Meta informa ${access.commentsCount} comentário(s) no Reel, mas não os disponibilizou para este token.`,
+            `A Meta informa ${access.commentsCount} comentário(s) nesta publicação, mas não os disponibilizou para este token.`,
             200,
             "COMMENTS_FILTERED_BY_META",
           );

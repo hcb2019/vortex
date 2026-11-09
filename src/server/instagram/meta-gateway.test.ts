@@ -80,4 +80,47 @@ describe("MetaInstagramGateway token lifecycle", () => {
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/ig-user/media_publish");
     expect(publishBody.get("creation_id")).toBe("container-1");
   });
+
+  it("lista Reels, carrosséis e posts do feed e ignora stories", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        {
+          id: "reel-1",
+          caption: "Reel",
+          media_product_type: "REELS",
+          media_type: "VIDEO",
+          permalink: "https://www.instagram.com/reel/demo/",
+          thumbnail_url: "https://scontent.cdninstagram.com/reel.jpg",
+          timestamp: "2026-11-01T12:00:00+0000",
+        },
+        {
+          id: "carousel-1",
+          caption: "Carrossel",
+          media_product_type: "FEED",
+          media_type: "CAROUSEL_ALBUM",
+          permalink: "https://www.instagram.com/p/demo-carrossel/",
+          timestamp: "2026-11-02T12:00:00+0000",
+          children: { data: [{ media_type: "IMAGE", media_url: "https://scontent.cdninstagram.com/slide.jpg" }] },
+        },
+        {
+          id: "story-1",
+          media_product_type: "STORY",
+          media_type: "IMAGE",
+          permalink: "https://www.instagram.com/stories/demo/",
+          timestamp: "2026-11-03T12:00:00+0000",
+        },
+      ],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await new MetaInstagramGateway().listPublishedMedia("ig-user", "token");
+
+    expect(result.map((item) => item.externalId)).toEqual(["reel-1", "carousel-1"]);
+    expect(result[1]).toMatchObject({
+      mediaProductType: "FEED",
+      mediaType: "CAROUSEL_ALBUM",
+      thumbnailUrl: "https://scontent.cdninstagram.com/slide.jpg",
+    });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("children");
+  });
 });

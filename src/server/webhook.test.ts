@@ -37,6 +37,35 @@ describe("Meta webhooks", () => {
     expect(verifyWebhookSignatureWithSecrets(payload, platformSignature, [])).toBe(false);
   });
 
+  it("maps a carousel feed comment without treating it as a Reel", () => {
+    const carouselPayload = JSON.stringify({
+      object: "instagram",
+      entry: [{
+        id: "ig-owner",
+        changes: [{
+          field: "comments",
+          value: {
+            id: "comment-carousel",
+            text: "QUIZ",
+            from: { id: "person-2", username: "ana" },
+            media: { id: "carousel-1", media_product_type: "FEED" },
+          },
+        }],
+      }],
+    });
+
+    expect(parseCommentEvents(carouselPayload)).toEqual([{
+      instagramUserId: "ig-owner",
+      commentId: "comment-carousel",
+      mediaId: "carousel-1",
+      mediaProductType: "FEED",
+      commenterScopedId: "person-2",
+      commenterUsername: "ana",
+      text: "QUIZ",
+      isSelf: false,
+    }]);
+  });
+
   it("maps a comment event without retaining the full envelope", () => {
     expect(parseCommentEvents(payload)).toEqual([{ instagramUserId: "ig-owner", commentId: "comment-1", mediaId: "reel-1", mediaProductType: "REELS", commenterScopedId: "person-1", commenterUsername: "maria", text: "1991", isSelf: false }]);
   });

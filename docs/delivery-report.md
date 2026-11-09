@@ -6,7 +6,7 @@ Data: 18/07/2026.
 
 - Painel completo em português do Brasil, responsivo, com login owner-only, dashboard, automações, edição, detalhe, histórico, configurações e modo de demonstração.
 - Supabase versionado com schema, constraints, índices, RLS, view `security_invoker`, fila `pgmq`, RPCs privilegiadas, retenção e seed.
-- Adaptadores `InstagramGateway` mock/Meta, OAuth, sincronização paginada de Reels, webhook HMAC, processamento idempotente, retries, estados parciais/ambíguos e soft delete.
+- Adaptadores `InstagramGateway` mock/Meta, OAuth, sincronização paginada de Reels, carrosséis e posts do feed, webhook HMAC, processamento idempotente, retries, estados parciais/ambíguos e soft delete.
 - Links opacos rastreáveis, primeiro clique atômico, redirecionamento 302 sem cache e retenção de 180 dias sem IP.
 - CSP com nonce, headers defensivos, AES-256-GCM, redaction opcional do Sentry, CI, runbook, ADRs, threat model e checklist Meta.
 - Radar de audiência com filtros de 7/30/90 dias e Reel, temas, oportunidades priorizadas, evidências, feedback e Estúdio de ideias.

@@ -39,7 +39,7 @@ Publique e confirme `/`, `/dashboard`, `/radar` e `/connection-guide`.
    npx supabase db push
    ```
 
-   Aplique as migrations **antes ou junto** do deploy. A migration `multi_instagram_connections` remove `UNIQUE(owner_id)` para permitir várias contas Instagram no mesmo login; a linha já existente permanece intacta.
+   Aplique as migrations **antes ou junto** do deploy. A migration `multi_instagram_connections` remove `UNIQUE(owner_id)` para permitir várias contas Instagram no mesmo login; a linha já existente permanece intacta. A migration `feed_media_types` relaxa o check de `instagram_media` para aceitar `FEED` e adiciona `media_type`; as linhas de Reels já existentes recebem `VIDEO` e não são apagadas.
 
 4. Em Authentication:
    - configure a Site URL;
